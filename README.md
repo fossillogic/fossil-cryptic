@@ -33,13 +33,13 @@
 
 #### Using Meson
 
-1. **Install or Upgrade Meson** (version 1.3 or newer recommended):
+### **Install or Upgrade Meson** (version 1.3 or newer recommended):
 
 ```sh
    python -m pip install meson           # Install Meson
    python -m pip install --upgrade meson # Upgrade Meson
 ```
-	2.	Add the .wrap File
+###	Add the .wrap File
 Place a file named fossil-cryptic.wrap in your subprojects directory with the following content:
 
 ```ini
@@ -54,7 +54,7 @@ revision = v0.1.0
 fossil-cryptic = fossil_cryptic_dep
 ```
 
-	3.	Integrate in Your meson.build
+###	Integrate in Your meson.build
 Add the dependency by including this line:
 
 ```meson
