@@ -74,4 +74,4 @@ meson setup builddir -Dwith_test=enabled
 
 ## Contributing and Support
 
-We welcome contributions, bug reports, and feature requests! Please open issues or pull requests on the Fossil Cryptic GitHub repository or visit Fossil Logic Docs for additional information.
+For those interested in contributing, reporting issues, or seeking support, please open an issue on the project repository or visit the [Fossil Logic Docs](https://fossillogic.com/docs) for more information. Your feedback and contributions are always welcome.
