@@ -14,19 +14,71 @@
 #ifndef FOSSIL_CRYPTIC_HASH_H
 #define FOSSIL_CRYPTIC_HASH_H
 
-#include <stddef.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
-// *****************************************************************************
-// Function prototypes
-// *****************************************************************************
+/* ---------------------
+ * Types and constants
+ * -------------------*/
 
-// draft hash algorithm
+typedef enum {
+    FOSSIL_CRYPTIC_HASH_ALG_CRC32 = 1,
+    FOSSIL_CRYPTIC_HASH_ALG_FNV1A32,
+    FOSSIL_CRYPTIC_HASH_ALG_FNV1A64,
+    FOSSIL_CRYPTIC_HASH_ALG_MURMUR3_32
+} fossil_cryptic_hash_alg_t;
+
+/* Generic streaming context. Only CRC32 and FNV-1a supported for streaming. */
+typedef struct {
+    fossil_cryptic_hash_alg_t alg;
+    union {
+        uint32_t crc32;
+        uint32_t fnv1a32;
+        uint64_t fnv1a64;
+        /* murmur3 streaming is not provided in this lightweight API */
+    } state;
+} fossil_cryptic_hash_ctx_t;
+
+/* ---------------------
+ * One-shot hashing APIs
+ * -------------------*/
+
+/* CRC32 (IEEE 802.3) */
+uint32_t fossil_cryptic_hash_crc32(const void *data, size_t len);
+
+/* FNV-1a */
+uint32_t  fossil_cryptic_hash_fnv1a32(const void *data, size_t len);
+uint64_t  fossil_cryptic_hash_fnv1a64(const void *data, size_t len);
+
+/* MurmurHash3 x86_32 (public-domain reference-style implementation) */
+uint32_t  fossil_cryptic_hash_murmur3_32(const void *data, size_t len, uint32_t seed);
+
+/* ---------------------
+ * Streaming API (init/update/final)
+ * Supports CRC32, FNV-1a (32/64)
+ * -------------------*/
+
+/* Initialize context for the requested algorithm */
+void fossil_cryptic_hash_init(fossil_cryptic_hash_ctx_t *ctx, fossil_cryptic_hash_alg_t alg);
+
+/* Feed bytes into the streaming hash */
+void fossil_cryptic_hash_update(fossil_cryptic_hash_ctx_t *ctx, const void *data, size_t len);
+
+/* Finalize and obtain 32-bit result. For 64-bit result, use final64 when appropriate. */
+uint32_t fossil_cryptic_hash_final32(fossil_cryptic_hash_ctx_t *ctx);
+
+/* Finalize and obtain 64-bit result. Only valid if ctx->alg == FNV1A64 */
+uint64_t fossil_cryptic_hash_final64(fossil_cryptic_hash_ctx_t *ctx);
+
+/* Convenience: compute hex string for a 32-bit value (dest must be at least 9 bytes) */
+void fossil_cryptic_hash_u32_to_hex(uint32_t h, char dest[9]);
+
+/* Convenience: compute hex string for a 64-bit value (dest must be at least 17 bytes) */
+void fossil_cryptic_hash_u64_to_hex(uint64_t h, char dest[17]);
 
 #ifdef __cplusplus
 }
