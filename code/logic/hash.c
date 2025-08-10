@@ -289,14 +289,18 @@ void fossil_cryptic_hash_init(fossil_cryptic_hash_ctx_t *ctx, fossil_cryptic_has
         case FOSSIL_CRYPTIC_HASH_ALG_FNV1A64:
             ctx->state.fnv1a64 = 0xcbf29ce484222325ULL;
             break;
+        case FOSSIL_CRYPTIC_HASH_ALG_SHA256:
+            fossil_cryptic_hash_sha256_init(&ctx->state.sha256);
+            break;
         default:
-            /* unsupported for streaming: Murmur3 streaming not implemented */
             ctx->state.crc32 = 0;
             break;
     }
 }
 
 void fossil_cryptic_hash_update(fossil_cryptic_hash_ctx_t *ctx, const void *data, size_t len) {
+    if (!ctx || !data || len == 0) return;
+    const unsigvoid fossil_cryptic_hash_update(fossil_cryptic_hash_ctx_t *ctx, const void *data, size_t len) {
     if (!ctx || !data || len == 0) return;
     const unsigned char *p = (const unsigned char*)data;
     switch (ctx->alg) {
@@ -328,8 +332,10 @@ void fossil_cryptic_hash_update(fossil_cryptic_hash_ctx_t *ctx, const void *data
             ctx->state.fnv1a64 = h;
             break;
         }
+        case FOSSIL_CRYPTIC_HASH_ALG_SHA256:
+            fossil_cryptic_hash_sha256_update(&ctx->state.sha256, data, len);
+            break;
         default:
-            /* no-op for unsupported algs */
             break;
     }
 }
@@ -356,6 +362,14 @@ uint64_t fossil_cryptic_hash_final64(fossil_cryptic_hash_ctx_t *ctx) {
     }
     /* other algs don't provide 64-bit final */
     return 0;
+}
+
+void fossil_cryptic_hash_final_sha256(fossil_cryptic_hash_ctx_t *ctx, uint8_t out[32]) {
+    if (!ctx || ctx->alg != FOSSIL_CRYPTIC_HASH_ALG_SHA256) {
+        memset(out, 0, 32);
+        return;
+    }
+    fossil_cryptic_hash_sha256_final(&ctx->state.sha256, out);
 }
 
 /* ---------------------------
