@@ -25,23 +25,45 @@ extern "C" {
  * Types and constants
  * -------------------*/
 
+/* Add in the enum */
 typedef enum {
     FOSSIL_CRYPTIC_HASH_ALG_CRC32 = 1,
     FOSSIL_CRYPTIC_HASH_ALG_FNV1A32,
     FOSSIL_CRYPTIC_HASH_ALG_FNV1A64,
-    FOSSIL_CRYPTIC_HASH_ALG_MURMUR3_32
+    FOSSIL_CRYPTIC_HASH_ALG_MURMUR3_32,
+    FOSSIL_CRYPTIC_HASH_ALG_SHA256     /* NEW */
 } fossil_cryptic_hash_alg_t;
 
-/* Generic streaming context. Only CRC32 and FNV-1a supported for streaming. */
+/* SHA-256 context (internal, but exposed for size) */
+typedef struct {
+    uint32_t state[8];
+    uint64_t bitlen;
+    uint8_t  buffer[64];
+} fossil_cryptic_hash_sha256_ctx_t;
+
+/* Add to generic context union */
 typedef struct {
     fossil_cryptic_hash_alg_t alg;
     union {
         uint32_t crc32;
         uint32_t fnv1a32;
         uint64_t fnv1a64;
-        /* murmur3 streaming is not provided in this lightweight API */
+        fossil_cryptic_hash_sha256_ctx_t sha256;
     } state;
 } fossil_cryptic_hash_ctx_t;
+
+// functions
+
+/* --- One-shot SHA-256 --- */
+void fossil_cryptic_hash_sha256(const void *data, size_t len, uint8_t out[32]);
+
+/* --- Streaming SHA-256 --- */
+void fossil_cryptic_hash_sha256_init(fossil_cryptic_hash_sha256_ctx_t *ctx);
+void fossil_cryptic_hash_sha256_update(fossil_cryptic_hash_sha256_ctx_t *ctx, const void *data, size_t len);
+void fossil_cryptic_hash_sha256_final(fossil_cryptic_hash_sha256_ctx_t *ctx, uint8_t out[32]);
+
+/* Convenience: hex string for SHA-256 digest (dest must be at least 65 bytes) */
+void fossil_cryptic_hash_sha256_to_hex(const uint8_t hash[32], char dest[65]);
 
 /* ---------------------
  * One-shot hashing APIs
