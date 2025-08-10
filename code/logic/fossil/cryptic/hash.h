@@ -55,66 +55,329 @@ typedef struct {
 // functions
 
 /* --- One-shot SHA-256 --- */
+
+/**
+ * @brief Compute a SHA-256 digest for a complete data buffer in one call.
+ *
+ * This is a one-shot API — it processes the entire data block and produces
+ * the 256-bit digest without maintaining a streaming context.
+ *
+ * @param data Pointer to the input data buffer.
+ * @param len  Length of the input data in bytes.
+ * @param out  Pointer to a 32-byte array where the resulting hash will be stored.
+ */
 void fossil_cryptic_hash_sha256(const void *data, size_t len, uint8_t out[32]);
 
 /* --- Streaming SHA-256 --- */
+
+/**
+ * @brief Initialize a SHA-256 hashing context for incremental hashing.
+ *
+ * This function prepares the provided SHA-256 context for accepting data.
+ * It must be called before any calls to fossil_cryptic_hash_sha256_update().
+ *
+ * @param ctx Pointer to a SHA-256 context structure.
+ */
 void fossil_cryptic_hash_sha256_init(fossil_cryptic_hash_sha256_ctx_t *ctx);
+
+/**
+ * @brief Feed data into the SHA-256 context.
+ *
+ * This function can be called multiple times to process data in chunks.
+ * The context must have been initialized with fossil_cryptic_hash_sha256_init().
+ *
+ * @param ctx  Pointer to a SHA-256 context structure.
+ * @param data Pointer to the data to be hashed.
+ * @param len  Number of bytes of data to hash.
+ */
 void fossil_cryptic_hash_sha256_update(fossil_cryptic_hash_sha256_ctx_t *ctx, const void *data, size_t len);
+
+/**
+ * @brief Finalize the SHA-256 hash computation and produce the digest.
+ *
+ * Once this function is called, the context should not be reused unless
+ * reinitialized. It writes the final 256-bit hash to the output buffer.
+ *
+ * @param ctx Pointer to the SHA-256 context structure.
+ * @param out Pointer to a 32-byte array for storing the digest.
+ */
 void fossil_cryptic_hash_sha256_final(fossil_cryptic_hash_sha256_ctx_t *ctx, uint8_t out[32]);
 
-/* Convenience: hex string for SHA-256 digest (dest must be at least 65 bytes) */
+/**
+ * @brief Convert a 32-byte SHA-256 digest to a hexadecimal string.
+ *
+ * Produces a null-terminated, lowercase hexadecimal string representation
+ * of the given digest. The destination buffer must be at least 65 bytes long.
+ *
+ * @param hash Pointer to the 32-byte SHA-256 digest.
+ * @param dest Pointer to a buffer where the resulting hex string will be stored.
+ */
 void fossil_cryptic_hash_sha256_to_hex(const uint8_t hash[32], char dest[65]);
+
 
 /* ---------------------
  * One-shot hashing APIs
  * -------------------*/
 
-/* CRC32 (IEEE 802.3) */
+/**
+ * @brief Compute a CRC32 checksum (IEEE 802.3 standard) for the given buffer.
+ *
+ * @param data Pointer to the input data buffer.
+ * @param len  Length of the input data in bytes.
+ * @return 32-bit CRC32 checksum.
+ */
 uint32_t fossil_cryptic_hash_crc32(const void *data, size_t len);
 
-/* FNV-1a */
-uint32_t  fossil_cryptic_hash_fnv1a32(const void *data, size_t len);
-uint64_t  fossil_cryptic_hash_fnv1a64(const void *data, size_t len);
+/**
+ * @brief Compute an FNV-1a 32-bit hash for the given buffer.
+ *
+ * @param data Pointer to the input data buffer.
+ * @param len  Length of the input data in bytes.
+ * @return 32-bit FNV-1a hash.
+ */
+uint32_t fossil_cryptic_hash_fnv1a32(const void *data, size_t len);
 
-/* MurmurHash3 x86_32 (public-domain reference-style implementation) */
-uint32_t  fossil_cryptic_hash_murmur3_32(const void *data, size_t len, uint32_t seed);
+/**
+ * @brief Compute an FNV-1a 64-bit hash for the given buffer.
+ *
+ * @param data Pointer to the input data buffer.
+ * @param len  Length of the input data in bytes.
+ * @return 64-bit FNV-1a hash.
+ */
+uint64_t fossil_cryptic_hash_fnv1a64(const void *data, size_t len);
+
+/**
+ * @brief Compute a MurmurHash3 x86_32 hash for the given buffer.
+ *
+ * Uses the public-domain reference implementation. This algorithm is
+ * non-cryptographic but provides good distribution for general-purpose use.
+ *
+ * @param data Pointer to the input data buffer.
+ * @param len  Length of the input data in bytes.
+ * @param seed Seed value to influence the hash result.
+ * @return 32-bit MurmurHash3 value.
+ */
+uint32_t fossil_cryptic_hash_murmur3_32(const void *data, size_t len, uint32_t seed);
+
 
 /* ---------------------
  * Streaming API (init/update/final)
- * Supports CRC32, FNV-1a (32/64)
+ * Supports CRC32, FNV-1a (32/64), and SHA-256
  * -------------------*/
 
-/* Initialize context for the requested algorithm */
+/**
+ * @brief Initialize a generic hashing context for the specified algorithm.
+ *
+ * @param ctx Pointer to a generic hash context.
+ * @param alg Algorithm identifier (from fossil_cryptic_hash_alg_t).
+ */
 void fossil_cryptic_hash_init(fossil_cryptic_hash_ctx_t *ctx, fossil_cryptic_hash_alg_t alg);
 
-/* Feed bytes into the streaming hash */
+/**
+ * @brief Feed data into a generic streaming hash context.
+ *
+ * This function may be called multiple times. The algorithm is determined
+ * by the context initialization.
+ *
+ * @param ctx  Pointer to the generic hash context.
+ * @param data Pointer to the input data to hash.
+ * @param len  Length of the input data in bytes.
+ */
 void fossil_cryptic_hash_update(fossil_cryptic_hash_ctx_t *ctx, const void *data, size_t len);
 
-/* Finalize and obtain 32-bit result. For 64-bit result, use final64 when appropriate. */
+/**
+ * @brief Finalize and obtain a 32-bit hash result.
+ *
+ * Valid for algorithms that produce 32-bit results (CRC32, FNV1A32, Murmur3).
+ *
+ * @param ctx Pointer to the generic hash context.
+ * @return 32-bit hash result.
+ */
 uint32_t fossil_cryptic_hash_final32(fossil_cryptic_hash_ctx_t *ctx);
 
-/* Finalize and obtain 64-bit result. Only valid if ctx->alg == FNV1A64 */
+/**
+ * @brief Finalize and obtain a 64-bit hash result.
+ *
+ * Only valid if ctx->alg == FOSSIL_CRYPTIC_HASH_ALG_FNV1A64.
+ *
+ * @param ctx Pointer to the generic hash context.
+ * @return 64-bit hash result.
+ */
 uint64_t fossil_cryptic_hash_final64(fossil_cryptic_hash_ctx_t *ctx);
 
-/* Convenience: compute hex string for a 32-bit value (dest must be at least 9 bytes) */
+/**
+ * @brief Finalize a streaming SHA-256 computation from a generic context.
+ *
+ * This is the SHA-256 variant of the generic streaming API. It extracts
+ * the final 256-bit digest into the output buffer.
+ *
+ * @param ctx Pointer to the generic hash context.
+ * @param out Pointer to a 32-byte buffer for the resulting digest.
+ */
+void fossil_cryptic_hash_final_sha256(fossil_cryptic_hash_ctx_t *ctx, uint8_t out[32]);
+
+/**
+ * @brief Convert a 32-bit hash value to a lowercase hexadecimal string.
+ *
+ * The output buffer must be at least 9 bytes (8 hex digits + null terminator).
+ *
+ * @param h    32-bit hash value.
+ * @param dest Pointer to the destination buffer.
+ */
 void fossil_cryptic_hash_u32_to_hex(uint32_t h, char dest[9]);
 
-/* Convenience: compute hex string for a 64-bit value (dest must be at least 17 bytes) */
+/**
+ * @brief Convert a 64-bit hash value to a lowercase hexadecimal string.
+ *
+ * The output buffer must be at least 17 bytes (16 hex digits + null terminator).
+ *
+ * @param h    64-bit hash value.
+ * @param dest Pointer to the destination buffer.
+ */
 void fossil_cryptic_hash_u64_to_hex(uint64_t h, char dest[17]);
 
 #ifdef __cplusplus
 }
-#include <stdexcept>
-#include <vector>
 #include <string>
+#include <vector>
+#include <array>
+#include <cstdint>
+#include <cstring>
 
 namespace fossil {
 
-namespace cryptic {
+    namespace cryptic {
 
+        /**
+         * @brief A portable, dependency-free SHA-256 hashing wrapper for C++.
+         *
+         * This class provides a modern C++ interface for SHA-256, using the underlying
+         * C functions from the Fossil Cryptic Hash sub-library.
+         *
+         * Example (one-shot):
+         * @code
+         * std::string hex = fossil::cryptic::Sha256::hash_hex("hello");
+         * @endcode
+         *
+         * Example (streaming):
+         * @code
+         * fossil::cryptic::Sha256 ctx;
+         * ctx.update("hello").update(" world");
+         * std::string hex = ctx.final_hex();
+         * @endcode
+         */
+        class Sha256 {
+        public:
+            /** Default constructor — initializes an empty SHA-256 context */
+            Sha256() {
+                fossil_cryptic_hash_sha256_init(&ctx_);
+            }
+        
+            /**
+             * @brief Resets the context for reuse.
+             * @return Reference to self for method chaining.
+             */
+            Sha256& reset() {
+                fossil_cryptic_hash_sha256_init(&ctx_);
+                return *this;
+            }
+        
+            /**
+             * @brief Feed data into the ongoing hash calculation.
+             * @param data Pointer to raw bytes.
+             * @param len  Length of data in bytes.
+             * @return Reference to self for method chaining.
+             */
+            Sha256& update(const void* data, size_t len) {
+                fossil_cryptic_hash_sha256_update(&ctx_, data, len);
+                return *this;
+            }
+        
+            /**
+             * @brief Feed a std::string into the hash.
+             */
+            Sha256& update(const std::string& str) {
+                return update(str.data(), str.size());
+            }
+        
+            /**
+             * @brief Feed a std::vector<uint8_t> into the hash.
+             */
+            Sha256& update(const std::vector<uint8_t>& vec) {
+                return update(vec.data(), vec.size());
+            }
+        
+            /**
+             * @brief Finalizes the hash and returns the raw 32-byte digest.
+             * @return std::array<uint8_t, 32> containing the digest.
+             */
+            std::array<uint8_t, 32> final() {
+                std::array<uint8_t, 32> out{};
+                fossil_cryptic_hash_sha256_final(&ctx_, out.data());
+                return out;
+            }
+        
+            /**
+             * @brief Finalizes the hash and returns it as a lowercase hexadecimal string.
+             * @return std::string with 64 hex characters.
+             */
+            std::string final_hex() {
+                auto digest = final();
+                char hex[65];
+                fossil_cryptic_hash_sha256_to_hex(digest.data(), hex);
+                return std::string(hex);
+            }
+        
+            /**
+             * @brief One-shot hash of arbitrary data.
+             * @param data Pointer to raw bytes.
+             * @param len  Length in bytes.
+             * @return std::array<uint8_t, 32> containing the digest.
+             */
+            static std::array<uint8_t, 32> hash(const void* data, size_t len) {
+                std::array<uint8_t, 32> out{};
+                fossil_cryptic_hash_sha256(data, len, out.data());
+                return out;
+            }
+        
+            /**
+             * @brief One-shot hash of a std::string.
+             */
+            static std::array<uint8_t, 32> hash(const std::string& str) {
+                return hash(str.data(), str.size());
+            }
+        
+            /**
+             * @brief One-shot hash of a std::vector<uint8_t>.
+             */
+            static std::array<uint8_t, 32> hash(const std::vector<uint8_t>& vec) {
+                return hash(vec.data(), vec.size());
+            }
+        
+            /**
+             * @brief One-shot hash and return hex string.
+             */
+            static std::string hash_hex(const void* data, size_t len) {
+                char hex[65];
+                uint8_t digest[32];
+                fossil_cryptic_hash_sha256(data, len, digest);
+                fossil_cryptic_hash_sha256_to_hex(digest, hex);
+                return std::string(hex);
+            }
+        
+            static std::string hash_hex(const std::string& str) {
+                return hash_hex(str.data(), str.size());
+            }
+        
+            static std::string hash_hex(const std::vector<uint8_t>& vec) {
+                return hash_hex(vec.data(), vec.size());
+            }
+        
+        private:
+            fossil_cryptic_hash_sha256_ctx_t ctx_; ///< Internal C SHA-256 context
+        };
 
-
-} // namespace cryptic
+    } // namespace cryptic
 
 } // namespace fossil
 
