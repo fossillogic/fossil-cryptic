@@ -300,8 +300,6 @@ void fossil_cryptic_hash_init(fossil_cryptic_hash_ctx_t *ctx, fossil_cryptic_has
 
 void fossil_cryptic_hash_update(fossil_cryptic_hash_ctx_t *ctx, const void *data, size_t len) {
     if (!ctx || !data || len == 0) return;
-    const unsigvoid fossil_cryptic_hash_update(fossil_cryptic_hash_ctx_t *ctx, const void *data, size_t len) {
-    if (!ctx || !data || len == 0) return;
     const unsigned char *p = (const unsigned char*)data;
     switch (ctx->alg) {
         case FOSSIL_CRYPTIC_HASH_ALG_CRC32: {
