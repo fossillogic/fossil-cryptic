@@ -323,7 +323,7 @@ namespace fossil {
             /**
              * @brief Convert a 32-bit hash value to a lowercase hex string.
              */
-            static std::string toHex(uint32_t h) {
+            static std::string to_hex(uint32_t h) {
                 char buf[9];
                 fossil_cryptic_hash_u32_to_hex(h, buf);
                 return std::string(buf);
@@ -332,7 +332,7 @@ namespace fossil {
             /**
              * @brief Convert a 64-bit hash value to a lowercase hex string.
              */
-            static std::string toHex(uint64_t h) {
+            static std::string to_hex(uint64_t h) {
                 char buf[17];
                 fossil_cryptic_hash_u64_to_hex(h, buf);
                 return std::string(buf);
@@ -341,7 +341,7 @@ namespace fossil {
             /**
              * @brief Convert a SHA-256 digest to lowercase hex.
              */
-            static std::string toHex(const std::array<uint8_t, SHA256_SIZE>& digest) {
+            static std::string to_hex(const std::array<uint8_t, SHA256_SIZE>& digest) {
                 char buf[65];
                 fossil_cryptic_hash_sha256_to_hex(digest.data(), buf);
                 return std::string(buf);
