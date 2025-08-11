@@ -90,9 +90,12 @@ void fossil_cryptic_auth_pbkdf2_sha256(const uint8_t *password, size_t pass_len,
             salt_block[salt_len + 3] = (uint8_t)((i) & 0xFF);
             base_len = salt_len + 4;
         } else {
-            /* fallback: use a temporary buffer */
             uint8_t tmp[8];
-            memcpy(tmp, salt, salt_len);
+            size_t copy_len = salt_len > sizeof(tmp) ? sizeof(tmp) : salt_len;
+            memcpy(tmp, salt, copy_len);
+            if (copy_len < sizeof(tmp)) {
+                memset(tmp + copy_len, 0, sizeof(tmp) - copy_len);
+            }
             tmp[salt_len + 0] = (uint8_t)((i >> 24) & 0xFF);
             tmp[salt_len + 1] = (uint8_t)((i >> 16) & 0xFF);
             tmp[salt_len + 2] = (uint8_t)((i >> 8) & 0xFF);
