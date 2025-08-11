@@ -15,5 +15,7 @@
 #define FOSSIL_CRYPTIC_FRAMEWORK_H
 
 #include "hash.h"
+#include "auth.h"
+#include "enc.h"
 
 #endif /* FOSSIL_CRYPTIC_FRAMEWORK_H */
