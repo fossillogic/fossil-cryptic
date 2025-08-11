@@ -11,8 +11,8 @@
  * Copyright (C) 2024 Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#ifndef FOSSIL_CRYPTIC_HASH_H
-#define FOSSIL_CRYPTIC_HASH_H
+#ifndef FOSSIL_CRYPTIC_AUTH_H
+#define FOSSIL_CRYPTIC_AUTH_H
 
 #include <stdint.h>
 #include <stddef.h>
