@@ -16,6 +16,7 @@
 #include "fossil/cryptic/enc.h"
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 /* ---------------------------
  * secure_zero
