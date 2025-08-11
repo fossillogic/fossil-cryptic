@@ -14,10 +14,6 @@
 #include "fossil/cryptic/auth.h"
 #include "fossil/cryptic/hash.h"
 #include <string.h>
-
-#include "fossil_cryptic_auth.h"
-#include "fossil_cryptic_hash.h"  /* Uses SHA-256 implementation */
-#include <string.h>
 #include <stdint.h>
 
 /* ----------------------
