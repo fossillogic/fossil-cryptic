@@ -153,21 +153,15 @@ static void fossil_store32_le(uint8_t *p, uint32_t v) {
  * We extract into 5 26-bit limbs after clamping.
  */
 static void fossil_poly1305_keyclamp_and_load_r(const uint8_t rkey[16], uint32_t r[5]) {
-    /* rkey is 16 bytes little-endian */
-    uint64_t t0 = (uint64_t)fossil_load32_le(rkey + 0) | ((uint64_t)fossil_load32_le(rkey + 4) << 32);
-    uint64_t t1 = (uint64_t)fossil_load32_le(rkey + 8) | ((uint64_t)fossil_load32_le(rkey + 12) << 32);
-
-    /* apply clamp: clear bits 0..127 as needed by mask:
-       mask bytes: 0x0ffffffc0ffffffc0ffffffc0fffffff (in 130-bit form)
-       Simpler approach: clear specific bits in bytes as per RFC */
+    /* apply clamp: clear bits as per RFC 8439, section 2.5.1 */
     uint8_t clamped[16];
     memcpy(clamped, rkey, 16);
-    clamped[3] &= 15;
-    clamped[7] &= 15;
+    clamped[3]  &= 15;
+    clamped[7]  &= 15;
     clamped[11] &= 15;
     clamped[15] &= 15;
-    clamped[4] &= 252;
-    clamped[8] &= 252;
+    clamped[4]  &= 252;
+    clamped[8]  &= 252;
     clamped[12] &= 252;
 
     /* now load as 5 26-bit limbs little-endian: r0 + r1*2^26 + r2*2^52 ... */
@@ -272,7 +266,6 @@ void fossil_cryptic_auth_poly1305_init(fossil_cryptic_auth_poly1305_ctx_t *ctx, 
 /* Update with arbitrary bytes */
 void fossil_cryptic_auth_poly1305_update(fossil_cryptic_auth_poly1305_ctx_t *ctx, const uint8_t *msg, size_t msg_len) {
     if (!ctx || !msg || msg_len == 0) return;
-    size_t i = 0;
 
     /* handle leftover */
     if (ctx->leftover) {
@@ -308,34 +301,40 @@ void fossil_cryptic_auth_poly1305_finish(fossil_cryptic_auth_poly1305_ctx_t *ctx
 
     /* If there is leftover, process with padding and the "1" bit */
     if (ctx->leftover) {
-        /* pad remainder with zeros and set the 1 bit */
         uint8_t block[16] = {0};
         memcpy(block, ctx->buffer, ctx->leftover);
-        block[ctx->leftover] = 1; /* append 1 (equivalent to high bit for partial block) */
+        block[ctx->leftover] = 1;
         fossil_poly1305_blocks(ctx, block, 16);
     }
 
-    /* Fully carry h to 128-bit number */
+    /* Fully carry h to canonical form */
     uint64_t h0 = ctx->h[0];
     uint64_t h1 = ctx->h[1];
     uint64_t h2 = ctx->h[2];
     uint64_t h3 = ctx->h[3];
     uint64_t h4 = ctx->h[4];
 
-    /* combine into 128-bit little-endian number */
-    uint64_t acc0 = (h0) | (h1 << 26);
-    uint64_t acc1 = (h1 >> 6) | (h2 << 20);
-    uint64_t acc2 = (h2 >> 12) | (h3 << 14);
-    uint64_t acc3 = (h3 >> 18) | (h4 << 8);
+    /* Final carry propagation */
+    uint64_t c;
+    c = h1 >> 26; h1 &= 0x3ffffff; h2 += c;
+    c = h2 >> 26; h2 &= 0x3ffffff; h3 += c;
+    c = h3 >> 26; h3 &= 0x3ffffff; h4 += c;
+    c = h4 >> 26; h4 &= 0x3ffffff; h0 += c * 5;
+    c = h0 >> 26; h0 &= 0x3ffffff; h1 += c;
+
+    /* Now combine into 128-bit little-endian number */
+    uint64_t acc0 = h0 | (h1 << 26);
+    uint64_t acc1 = (h1 >> 38) | (h2 << 12) | (h3 << 38); /* folded limbs */
 
     /* add s (pad) */
     uint64_t s0 = ((uint64_t)ctx->pad[0]) | ((uint64_t)ctx->pad[1] << 32);
     uint64_t s1 = ((uint64_t)ctx->pad[2]) | ((uint64_t)ctx->pad[3] << 32);
 
     acc0 += s0;
-    acc1 += s1 + (acc0 < s0);
+    uint64_t carry = (acc0 < s0);
+    acc1 += s1 + carry;
 
-    /* store tag little-endian 16 bytes */
+    /* Store tag little-endian 16 bytes */
     fossil_store32_le(tag + 0,  (uint32_t)(acc0 & 0xFFFFFFFFu));
     fossil_store32_le(tag + 4,  (uint32_t)((acc0 >> 32) & 0xFFFFFFFFu));
     fossil_store32_le(tag + 8,  (uint32_t)(acc1 & 0xFFFFFFFFu));
