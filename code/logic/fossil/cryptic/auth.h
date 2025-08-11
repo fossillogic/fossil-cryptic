@@ -132,6 +132,68 @@ void fossil_cryptic_auth_poly1305_finish(fossil_cryptic_auth_poly1305_ctx_t *ctx
  */
 int fossil_cryptic_auth_consttime_equal(const uint8_t *a, const uint8_t *b, size_t len);
 
+/* ----------------------------
+ * ChaCha20 core / stream XOR
+ * ---------------------------- */
+
+/**
+ * @brief Compute a single 64-byte ChaCha20 block.
+ *
+ * @param key     32-byte key
+ * @param nonce   12-byte nonce
+ * @param counter 32-bit block counter (usually 0 for key block, 1..n for stream)
+ * @param out     64-byte output block
+ */
+void fossil_cryptic_auth_chacha20_block(const uint8_t key[32], const uint8_t nonce[12], uint32_t counter, uint8_t out[64]);
+
+/**
+ * @brief XOR input with ChaCha20 keystream (encrypt/decrypt).
+ *
+ * Produces out[i] = in[i] ^ keystream[i], using the given counter as the
+ * initial 32-bit block counter (keystream block 0 corresponds to counter).
+ *
+ * @param key      32-byte key
+ * @param nonce    12-byte nonce
+ * @param counter  initial 32-bit block counter (use 1 for AEAD encryption per RFC)
+ * @param in       input bytes
+ * @param out      output buffer (may alias in)
+ * @param len      number of bytes to process
+ */
+void fossil_cryptic_auth_chacha20_xor(const uint8_t key[32], const uint8_t nonce[12], uint32_t counter, const uint8_t *in, uint8_t *out, size_t len);
+
+/* ----------------------------
+ * ChaCha20-Poly1305 AEAD
+ * ---------------------------- */
+
+/**
+ * @brief Encrypt plaintext with ChaCha20-Poly1305 (IETF), producing ciphertext and 16-byte tag.
+ *
+ * @param key       32-byte key
+ * @param nonce     12-byte nonce
+ * @param aad       Additional authenticated data (may be NULL if aad_len == 0)
+ * @param aad_len   Length of AAD
+ * @param plaintext Plaintext bytes
+ * @param pt_len    Length of plaintext
+ * @param ciphertext Output buffer for ciphertext (must be at least pt_len). Can alias plaintext.
+ * @param tag       16-byte output tag
+ */
+void fossil_cryptic_auth_chacha20_poly1305_encrypt(const uint8_t key[32], const uint8_t nonce[12], const uint8_t *aad, size_t aad_len, const uint8_t *plaintext, size_t pt_len, uint8_t *ciphertext, uint8_t tag[16]);
+
+/**
+ * @brief Decrypt ciphertext with ChaCha20-Poly1305 (IETF) and verify tag.
+ *
+ * @param key       32-byte key
+ * @param nonce     12-byte nonce
+ * @param aad       AAD bytes (may be NULL if aad_len == 0)
+ * @param aad_len   Length of AAD
+ * @param ciphertext Ciphertext bytes
+ * @param ct_len    Length of ciphertext
+ * @param plaintext Output buffer for plaintext (must be at least ct_len). May alias ciphertext.
+ * @param tag       16-byte tag to verify
+ * @return 1 on success (tag OK), 0 on failure (tag mismatch)
+ */
+int fossil_cryptic_auth_chacha20_poly1305_decrypt(const uint8_t key[32], const uint8_t nonce[12], const uint8_t *aad, size_t aad_len, const uint8_t *ciphertext, size_t ct_len, uint8_t *plaintext, const uint8_t tag[16]);
+
 #ifdef __cplusplus
 }
 #include <string>
