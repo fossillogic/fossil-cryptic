@@ -9,7 +9,7 @@ else
 endif
 
 fossil_cryptic_lib = static_library('fossil-cryptic',
-    files('hash.c', 'auth.c'),
+    files('hash.c', 'auth.c', 'enc.c'),
     install: true,
     dependencies: [cc.find_library('m', required: false), winsock_dep],
     include_directories: dir)
