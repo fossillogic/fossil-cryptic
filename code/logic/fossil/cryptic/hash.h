@@ -361,7 +361,7 @@ namespace fossil {
              */
             static std::string sha256Hex(const void* data, size_t len) {
                 auto digest = sha256(data, len);
-                return toHex(digest);
+                return to_hex(digest);
             }
         
             /**
@@ -394,7 +394,7 @@ namespace fossil {
         
         private:
             fossil_cryptic_hash_ctx_t ctx_{};
-        }
+        };
 
     } // namespace cryptic
 
