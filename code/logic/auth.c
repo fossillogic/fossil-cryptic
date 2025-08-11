@@ -363,3 +363,195 @@ int fossil_cryptic_auth_consttime_equal(const uint8_t *a, const uint8_t *b, size
     /* returns 1 if equal (diff == 0) */
     return (diff == 0) ? 1 : 0;
 }
+
+/* Rotate macro */
+#ifndef ROTL32
+#define ROTL32(v, n) (((v) << (n)) | ((v) >> (32 - (n))))
+#endif
+
+/* ChaCha20 quarter round */
+#define QR(a,b,c,d) \
+    a += b; d ^= a; d = ROTL32(d,16); \
+    c += d; b ^= c; b = ROTL32(b,12); \
+    a += b; d ^= a; d = ROTL32(d,8);  \
+    c += d; b ^= c; b = ROTL32(b,7);
+
+static uint32_t load32_le(const uint8_t *p) {
+    return ((uint32_t)p[0]) | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+
+static void store32_le(uint8_t *p, uint32_t v) {
+    p[0] = (uint8_t)(v & 0xFF);
+    p[1] = (uint8_t)((v >> 8) & 0xFF);
+    p[2] = (uint8_t)((v >> 16) & 0xFF);
+    p[3] = (uint8_t)((v >> 24) & 0xFF);
+}
+
+/* Constants for ChaCha20 (ASCII of "expand 32-byte k") */
+static const uint8_t chacha20_const[16] = { 'e','x','p','a','n','d',' ','3','2','-','b','y','t','e',' ','k' };
+
+/* chacha20 block: produces 64 bytes */
+void fossil_cryptic_auth_chacha20_block(const uint8_t key[32], const uint8_t nonce[12], uint32_t counter, uint8_t out[64]) {
+    uint32_t state[16];
+    uint32_t working[16];
+    int i;
+
+    /* state setup */
+    state[0]  = load32_le(chacha20_const + 0);
+    state[1]  = load32_le(chacha20_const + 4);
+    state[2]  = load32_le(chacha20_const + 8);
+    state[3]  = load32_le(chacha20_const + 12);
+
+    for (i = 0; i < 8; i++) {
+        state[4 + i] = load32_le(key + i*4);
+    }
+
+    state[12] = counter;
+    state[13] = load32_le(nonce + 0);
+    state[14] = load32_le(nonce + 4);
+    state[15] = load32_le(nonce + 8);
+
+    /* working copy */
+    for (i = 0; i < 16; ++i) working[i] = state[i];
+
+    /* 20 rounds (10 double rounds) */
+    for (i = 0; i < 10; ++i) {
+        /* column rounds */
+        QR(working[0], working[4], working[8],  working[12]);
+        QR(working[1], working[5], working[9],  working[13]);
+        QR(working[2], working[6], working[10], working[14]);
+        QR(working[3], working[7], working[11], working[15]);
+        /* diagonal rounds */
+        QR(working[0], working[5], working[10], working[15]);
+        QR(working[1], working[6], working[11], working[12]);
+        QR(working[2], working[7], working[8],  working[13]);
+        QR(working[3], working[4], working[9],  working[14]);
+    }
+
+    /* add & serialize */
+    for (i = 0; i < 16; ++i) {
+        uint32_t v = working[i] + state[i];
+        store32_le(out + i*4, v);
+    }
+}
+
+/* XOR keystream with input (streaming) */
+void fossil_cryptic_auth_chacha20_xor(const uint8_t key[32], const uint8_t nonce[12], uint32_t counter, const uint8_t *in, uint8_t *out, size_t len) {
+    uint8_t block[64];
+    size_t offset = 0;
+    uint32_t ctr = counter;
+
+    while (len > 0) {
+        fossil_cryptic_auth_chacha20_block(key, nonce, ctr, block);
+        size_t chunk = (len > 64) ? 64 : len;
+        for (size_t i = 0; i < chunk; ++i) {
+            out[offset + i] = in[offset + i] ^ block[i];
+        }
+        len -= chunk;
+        offset += chunk;
+        ctr++;
+    }
+}
+
+/* Helper: write 64-bit little-endian */
+static void store64_le(uint8_t *p, uint64_t v) {
+    p[0] = (uint8_t)(v & 0xFF);
+    p[1] = (uint8_t)((v >> 8) & 0xFF);
+    p[2] = (uint8_t)((v >> 16) & 0xFF);
+    p[3] = (uint8_t)((v >> 24) & 0xFF);
+    p[4] = (uint8_t)((v >> 32) & 0xFF);
+    p[5] = (uint8_t)((v >> 40) & 0xFF);
+    p[6] = (uint8_t)((v >> 48) & 0xFF);
+    p[7] = (uint8_t)((v >> 56) & 0xFF);
+}
+
+/* AEAD encrypt */
+void fossil_cryptic_auth_chacha20_poly1305_encrypt(const uint8_t key[32], const uint8_t nonce[12], const uint8_t *aad, size_t aad_len, const uint8_t *plaintext, size_t pt_len, uint8_t *ciphertext, uint8_t tag[16]) {
+    uint8_t poly_key[32];
+    uint8_t zero_block[64] = {0};
+
+    /* Derive Poly1305 key: chacha20 block with counter = 0 */
+    fossil_cryptic_auth_chacha20_block(key, nonce, 0, zero_block);
+    memcpy(poly_key, zero_block, 32);
+
+    /* Encrypt plaintext using ChaCha20 with counter = 1 */
+    if (pt_len > 0) {
+        fossil_cryptic_auth_chacha20_xor(key, nonce, 1, plaintext, ciphertext, pt_len);
+    } else {
+        /* nothing to do */
+    }
+
+    /* Compute Poly1305 tag over: aad || pad16 || ciphertext || pad16 || len(aad) (64-bit LE) || len(ciphertext) (64-bit LE) */
+    fossil_cryptic_auth_poly1305_ctx_t pctx;
+    fossil_cryptic_auth_poly1305_init(&pctx, poly_key);
+
+    /* AAD */
+    if (aad_len) fossil_cryptic_auth_poly1305_update(&pctx, aad, aad_len);
+    /* pad to 16 */
+    if (aad_len % 16) {
+        uint8_t zeros[16] = {0};
+        fossil_cryptic_auth_poly1305_update(&pctx, zeros, 16 - (aad_len % 16));
+    }
+
+    /* Ciphertext */
+    if (pt_len) fossil_cryptic_auth_poly1305_update(&pctx, ciphertext, pt_len);
+    if (pt_len % 16) {
+        uint8_t zeros[16] = {0};
+        fossil_cryptic_auth_poly1305_update(&pctx, zeros, 16 - (pt_len % 16));
+    }
+
+    /* lengths: 64-bit little endian */
+    uint8_t len_block[16];
+    store64_le(len_block + 0, (uint64_t)aad_len);
+    store64_le(len_block + 8, (uint64_t)pt_len);
+    fossil_cryptic_auth_poly1305_update(&pctx, len_block, 16);
+
+    fossil_cryptic_auth_poly1305_finish(&pctx, tag);
+}
+
+/* AEAD decrypt: verify tag, then decrypt on success */
+int fossil_cryptic_auth_chacha20_poly1305_decrypt(const uint8_t key[32], const uint8_t nonce[12], const uint8_t *aad, size_t aad_len, const uint8_t *ciphertext, size_t ct_len, uint8_t *plaintext, const uint8_t tag[16]) {
+    uint8_t poly_key[32];
+    uint8_t zero_block[64] = {0};
+    uint8_t calc_tag[16];
+
+    /* Derive Poly1305 key */
+    fossil_cryptic_auth_chacha20_block(key, nonce, 0, zero_block);
+    memcpy(poly_key, zero_block, 32);
+
+    /* Compute tag over AAD and ciphertext (same as encrypt) */
+    fossil_cryptic_auth_poly1305_ctx_t pctx;
+    fossil_cryptic_auth_poly1305_init(&pctx, poly_key);
+
+    if (aad_len) fossil_cryptic_auth_poly1305_update(&pctx, aad, aad_len);
+    if (aad_len % 16) {
+        uint8_t zeros[16] = {0};
+        fossil_cryptic_auth_poly1305_update(&pctx, zeros, 16 - (aad_len % 16));
+    }
+
+    if (ct_len) fossil_cryptic_auth_poly1305_update(&pctx, ciphertext, ct_len);
+    if (ct_len % 16) {
+        uint8_t zeros[16] = {0};
+        fossil_cryptic_auth_poly1305_update(&pctx, zeros, 16 - (ct_len % 16));
+    }
+
+    uint8_t len_block[16];
+    store64_le(len_block + 0, (uint64_t)aad_len);
+    store64_le(len_block + 8, (uint64_t)ct_len);
+    fossil_cryptic_auth_poly1305_update(&pctx, len_block, 16);
+
+    fossil_cryptic_auth_poly1305_finish(&pctx, calc_tag);
+
+    /* Constant-time compare */
+    if (!fossil_cryptic_auth_consttime_equal(calc_tag, tag, 16)) {
+        /* tag mismatch - do not decrypt */
+        return 0;
+    }
+
+    /* Tag valid -> decrypt ciphertext using ChaCha20 counter = 1 */
+    if (ct_len > 0) {
+        fossil_cryptic_auth_chacha20_xor(key, nonce, 1, ciphertext, plaintext, ct_len);
+    }
+
+    return 1;
+}
