@@ -103,7 +103,7 @@ FOSSIL_TEST_CASE(cpp_test_pbkdf2_sha256_empty_password_salt) {
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
-FOSSIL_TEST_GROUP(c_hash_tests) {
+FOSSIL_TEST_GROUP(cpp_auth_tests) {
     FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_hmac_sha256_known_vector);
     FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_hmac_sha256_empty_key_data);
     FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_pbkdf2_sha256_known_vector);
