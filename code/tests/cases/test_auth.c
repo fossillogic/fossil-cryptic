@@ -129,10 +129,10 @@ FOSSIL_TEST_CASE(c_test_chacha20_block_vector) {
     uint8_t out[64];
     fossil_cryptic_auth_chacha20_block(key, nonce, 1, out);
     // First 4 bytes should be 0x10f1e7e4
-    ASSUME_ITS_EQUAL(out[0], 0x10);
-    ASSUME_ITS_EQUAL(out[1], 0xf1);
-    ASSUME_ITS_EQUAL(out[2], 0xe7);
-    ASSUME_ITS_EQUAL(out[3], 0xe4);
+    ASSUME_ITS_EQUAL_I32(out[0], 0x10);
+    ASSUME_ITS_EQUAL_I32(out[1], 0xf1);
+    ASSUME_ITS_EQUAL_I32(out[2], 0xe7);
+    ASSUME_ITS_EQUAL_I32(out[3], 0xe4);
 }
 
 FOSSIL_TEST_CASE(c_test_chacha20_xor_roundtrip) {
