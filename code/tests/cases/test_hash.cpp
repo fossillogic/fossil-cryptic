@@ -125,7 +125,7 @@ FOSSIL_TEST_CASE(cpp_test_streaming_sha256_generic) {
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
-FOSSIL_TEST_GROUP(c_hash_tests) {
+FOSSIL_TEST_GROUP(cpp_hash_tests) {
     FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_sha256_oneshot);
     FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_sha256_streaming);
     FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_crc32_oneshot);
