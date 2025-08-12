@@ -40,16 +40,102 @@ FOSSIL_TEARDOWN(cpp_hash_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(cpp_test_blaink) {
-    ASSUME_ITS_TRUE(1);
+using fossil::cryptic::Hash;
+
+FOSSIL_TEST_CASE(cpp_test_sha256_oneshot) {
+    const char *msg = "abc";
+    auto digest = Hash::sha256(msg, 3);
+    auto hex = Hash::to_hex(digest);
+    ASSUME_ITS_EQUAL_CSTR(hex.c_str(), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+}
+
+FOSSIL_TEST_CASE(cpp_test_sha256_streaming) {
+    const char *msg = "abc";
+    Hash h(Hash::Algorithm::SHA256);
+    h.update(msg, 3);
+    auto digest = h.finalSHA256();
+    auto hex = Hash::to_hex(digest);
+    ASSUME_ITS_EQUAL_CSTR(hex.c_str(), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
+}
+
+FOSSIL_TEST_CASE(cpp_test_crc32_oneshot) {
+    const char *msg = "abc";
+    auto crc = Hash::crc32(msg, 3);
+    auto hex = Hash::to_hex(crc);
+    ASSUME_ITS_EQUAL_CSTR(hex.c_str(), "352441c2");
+}
+
+FOSSIL_TEST_CASE(cpp_test_fnv1a32_oneshot) {
+    const char *msg = "abc";
+    auto fnv = Hash::fnv1a32(msg, 3);
+    auto hex = Hash::to_hex(fnv);
+    ASSUME_ITS_EQUAL_CSTR(hex.c_str(), "e40c292c");
+}
+
+FOSSIL_TEST_CASE(cpp_test_fnv1a64_oneshot) {
+    const char *msg = "abc";
+    auto fnv = Hash::fnv1a64(msg, 3);
+    auto hex = Hash::to_hex(fnv);
+    ASSUME_ITS_EQUAL_CSTR(hex.c_str(), "af63dc4c8601ec8c");
+}
+
+FOSSIL_TEST_CASE(cpp_test_murmur3_oneshot) {
+    const char *msg = "abc";
+    auto mm3 = Hash::murmur3_32(msg, 3, 0);
+    auto hex = Hash::to_hex(mm3);
+    ASSUME_ITS_EQUAL_CSTR(hex.c_str(), "b3dd93fa");
+}
+
+FOSSIL_TEST_CASE(cpp_test_streaming_crc32) {
+    const char *msg = "abc";
+    Hash h(Hash::Algorithm::CRC32);
+    h.update(msg, 3);
+    auto crc = h.final32();
+    auto hex = Hash::to_hex(crc);
+    ASSUME_ITS_EQUAL_CSTR(hex.c_str(), "352441c2");
+}
+
+FOSSIL_TEST_CASE(cpp_test_streaming_fnv1a32) {
+    const char *msg = "abc";
+    Hash h(Hash::Algorithm::FNV1a32);
+    h.update(msg, 3);
+    auto fnv = h.final32();
+    auto hex = Hash::to_hex(fnv);
+    ASSUME_ITS_EQUAL_CSTR(hex.c_str(), "e40c292c");
+}
+
+FOSSIL_TEST_CASE(cpp_test_streaming_fnv1a64) {
+    const char *msg = "abc";
+    Hash h(Hash::Algorithm::FNV1a64);
+    h.update(msg, 3);
+    auto fnv = h.final64();
+    auto hex = Hash::to_hex(fnv);
+    ASSUME_ITS_EQUAL_CSTR(hex.c_str(), "af63dc4c8601ec8c");
+}
+
+FOSSIL_TEST_CASE(cpp_test_streaming_sha256_generic) {
+    const char *msg = "abc";
+    Hash h(Hash::Algorithm::SHA256);
+    h.update(msg, 3);
+    auto digest = h.finalSHA256();
+    auto hex = Hash::to_hex(digest);
+    ASSUME_ITS_EQUAL_CSTR(hex.c_str(), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
-FOSSIL_TEST_GROUP(cpp_hash_tests) {    
-    // C++ Wrapper Tests
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_blaink);
+FOSSIL_TEST_GROUP(c_hash_tests) {
+    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_sha256_oneshot);
+    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_sha256_streaming);
+    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_crc32_oneshot);
+    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_fnv1a32_oneshot);
+    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_fnv1a64_oneshot);
+    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_murmur3_oneshot);
+    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_streaming_crc32);
+    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_streaming_fnv1a32);
+    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_streaming_fnv1a64);
+    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_streaming_sha256_generic);
 
     FOSSIL_TEST_REGISTER(cpp_hash_fixture);
 } // end of tests
