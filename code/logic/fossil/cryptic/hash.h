@@ -346,6 +346,17 @@ namespace fossil {
                 fossil_cryptic_hash_sha256_to_hex(digest.data(), buf);
                 return std::string(buf);
             }
+
+            //
+            /**
+             * @brief Convert a SHA-256 digest (vector) to lowercase hex.
+             */
+            static std::string to_hex(const std::vector<uint8_t>& digest) {
+                char buf[65];
+                if (digest.size() != SHA256_SIZE) return {};
+                fossil_cryptic_hash_sha256_to_hex(digest.data(), buf);
+                return std::string(buf);
+            }
         
             /**
              * @brief One-shot SHA-256.

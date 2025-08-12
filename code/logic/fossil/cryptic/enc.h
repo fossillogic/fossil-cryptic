@@ -132,7 +132,147 @@ namespace fossil {
 
     namespace cryptic {
 
+        /**
+         * @brief C++ Encryptor utility class for Fossil Cryptic encryption APIs.
+         *
+         * Provides static wrappers for secure zeroing, ChaCha20, and AES-128-CTR
+         * encryption/decryption functions.
+         */
+        class Encryptor
+        {
+        public:
+            /**
+             * @brief Securely zero memory.
+             *
+             * @param p Pointer to memory.
+             * @param n Number of bytes.
+             */
+            static void secure_zero(void *p, size_t n) {
+                fossil_cryptic_enc_secure_zero(p, n);
+            }
 
+            /**
+             * @brief ChaCha20-CTR XOR.
+             *
+             * @param key 32-byte key.
+             * @param nonce 12-byte nonce.
+             * @param counter Initial block counter.
+             * @param in Input bytes.
+             * @param out Output buffer.
+             * @param len Number of bytes.
+             */
+            static void chacha20_ctr_xor(
+                const std::array<uint8_t, 32> &key,
+                const std::array<uint8_t, 12> &nonce,
+                uint32_t counter,
+                const uint8_t *in,
+                uint8_t *out,
+                size_t len) {
+                fossil_cryptic_enc_chacha20_ctr_xor(key.data(), nonce.data(), counter, in, out, len);
+            }
+
+            /**
+             * @brief ChaCha20-Poly1305 AEAD encrypt.
+             *
+             * @param key 32-byte key.
+             * @param nonce 12-byte nonce.
+             * @param aad Additional authenticated data.
+             * @param aad_len Length of aad.
+             * @param plaintext Input plaintext.
+             * @param pt_len Plaintext length.
+             * @param ciphertext Output ciphertext buffer.
+             * @param tag Output tag (16 bytes).
+             */
+            static void chacha20_poly1305_encrypt(
+                const std::array<uint8_t, 32> &key,
+                const std::array<uint8_t, 12> &nonce,
+                const uint8_t *aad,
+                size_t aad_len,
+                const uint8_t *plaintext,
+                size_t pt_len,
+                uint8_t *ciphertext,
+                std::array<uint8_t, 16> &tag) {
+                fossil_cryptic_enc_chacha20_poly1305_encrypt(
+                    key.data(), nonce.data(), aad, aad_len, plaintext, pt_len, ciphertext, tag.data());
+            }
+
+            /**
+             * @brief ChaCha20-Poly1305 AEAD decrypt.
+             *
+             * @param key 32-byte key.
+             * @param nonce 12-byte nonce.
+             * @param aad Additional authenticated data.
+             * @param aad_len Length of aad.
+             * @param ciphertext Input ciphertext.
+             * @param ct_len Ciphertext length.
+             * @param plaintext Output plaintext buffer.
+             * @param tag Tag to verify (16 bytes).
+             * @return true if tag is valid, false otherwise.
+             */
+            static bool chacha20_poly1305_decrypt(
+                const std::array<uint8_t, 32> &key,
+                const std::array<uint8_t, 12> &nonce,
+                const uint8_t *aad,
+                size_t aad_len,
+                const uint8_t *ciphertext,
+                size_t ct_len,
+                uint8_t *plaintext,
+                const std::array<uint8_t, 16> &tag) {
+                return fossil_cryptic_enc_chacha20_poly1305_decrypt(
+                           key.data(), nonce.data(), aad, aad_len, ciphertext, ct_len, plaintext, tag.data()) == 1;
+            }
+
+            /**
+             * @brief AES-128-CTR Encrypt-then-MAC (HMAC-SHA256).
+             *
+             * @param key 16-byte AES key.
+             * @param iv 16-byte IV.
+             * @param aad Additional authenticated data.
+             * @param aad_len Length of aad.
+             * @param plaintext Input plaintext.
+             * @param pt_len Plaintext length.
+             * @param ciphertext Output ciphertext buffer.
+             * @param mac_out Output MAC (32 bytes).
+             */
+            static void aes128_ctr_encrypt_then_mac_hmac_sha256(
+                const std::array<uint8_t, 16> &key,
+                const std::array<uint8_t, 16> &iv,
+                const uint8_t *aad,
+                size_t aad_len,
+                const uint8_t *plaintext,
+                size_t pt_len,
+                uint8_t *ciphertext,
+                std::array<uint8_t, 32> &mac_out) {
+                fossil_cryptic_enc_aes128_ctr_encrypt_then_mac_hmac_sha256(
+                    key.data(), iv.data(), aad, aad_len, plaintext, pt_len, ciphertext, mac_out.data());
+            }
+
+            /**
+             * @brief AES-128-CTR Verify-then-Decrypt (HMAC-SHA256).
+             *
+             * @param key 16-byte AES key.
+             * @param iv 16-byte IV.
+             * @param aad Additional authenticated data.
+             * @param aad_len Length of aad.
+             * @param ciphertext Input ciphertext.
+             * @param ct_len Ciphertext length.
+             * @param plaintext Output plaintext buffer.
+             * @param mac_in Input MAC (32 bytes).
+             * @return true if tag is valid and decryption succeeded, false otherwise.
+             */
+            static bool aes128_ctr_verify_then_decrypt_hmac_sha256(
+                const std::array<uint8_t, 16> &key,
+                const std::array<uint8_t, 16> &iv,
+                const uint8_t *aad,
+                size_t aad_len,
+                const uint8_t *ciphertext,
+                size_t ct_len,
+                uint8_t *plaintext,
+                const std::array<uint8_t, 32> &mac_in) {
+                return fossil_cryptic_enc_aes128_ctr_verify_then_decrypt_hmac_sha256(
+                           key.data(), iv.data(), aad, aad_len, ciphertext, ct_len, plaintext, mac_in.data()) == 1;
+            }
+        };
 
     } // namespace cryptic
 

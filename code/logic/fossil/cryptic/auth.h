@@ -206,7 +206,55 @@ namespace fossil {
 
     namespace cryptic {
 
+        class Auth {
+        public:
+            /**
+             * @brief Computes HMAC-SHA256 for given data.
+             *
+             * @param key       Pointer to the key.
+             * @param key_len   Length of the key in bytes.
+             * @param data      Pointer to the message data.
+             * @param data_len  Length of the message in bytes.
+             * @param out       32-byte buffer for the resulting MAC.
+             */
+            static std::array<uint8_t, 32> hmac_sha256(const uint8_t* key, size_t key_len, const uint8_t* data, size_t data_len) {
+                std::array<uint8_t, 32> out;
+                fossil_cryptic_auth_hmac_sha256(key, key_len, data, data_len, out.data());
+                return out;
+            }
 
+            /**
+             * @brief Computes PBKDF2-HMAC-SHA256.
+             *
+             * @param password   Pointer to the password.
+             * @param pass_len   Length of the password in bytes.
+             * @param salt       Pointer to the salt.
+             * @param salt_len   Length of the salt in bytes.
+             * @param iterations Number of iterations.
+             * @param out_len   Length of the output key in bytes.
+             * @return Derived key.
+             */
+            static std::vector<uint8_t> pbkdf2_sha256(const uint8_t* password, size_t pass_len, const uint8_t* salt, size_t salt_len, uint32_t iterations, size_t out_len) {
+                std::vector<uint8_t> out(out_len);
+                fossil_cryptic_auth_pbkdf2_sha256(password, pass_len, salt, salt_len, iterations, out.data(), out_len);
+                return out;
+            }
+
+            /**
+             * @brief Computes Poly1305 MAC for given message.
+             *
+             * @param key       Pointer to the key.
+             * @param msg      Pointer to the message data.
+             * @param msg_len  Length of the message in bytes.
+             * @return 16-byte Poly1305 tag.
+             */
+            static std::array<uint8_t, 16> poly1305_auth(const uint8_t key[32], const uint8_t* msg, size_t msg_len) {
+                std::array<uint8_t, 16> tag;
+                fossil_cryptic_auth_poly1305_auth(key, msg, msg_len, tag.data());
+                return tag;
+            }
+
+        };
 
     } // namespace cryptic
 
