@@ -61,7 +61,9 @@ void fossil_cryptic_auth_hmac_sha256(const uint8_t *key, size_t key_len, const u
 /* ----------------------
  * PBKDF2-HMAC-SHA256 (unchanged)
  * ---------------------- */
-void fossil_cryptic_auth_pbkdf2_sha256(const uint8_t *password, size_t pass_len, const uint8_t *salt, size_t salt_len, uint32_t iterations, uint8_t *out, size_t out_len) {
+void fossil_cryptic_auth_pbkdf2_sha256(const uint8_t *password, size_t pass_len,
+                                       const uint8_t *salt, size_t salt_len,
+                                       uint32_t iterations, uint8_t *out, size_t out_len) {
     if (!password || !salt || !out || iterations == 0) {
         if (out && out_len) memset(out, 0, out_len);
         return;
@@ -69,64 +71,52 @@ void fossil_cryptic_auth_pbkdf2_sha256(const uint8_t *password, size_t pass_len,
 
     uint32_t block_count = (uint32_t)((out_len + 31) / 32);
     uint8_t U[32], T[32];
-    /* salt_block holds salt || 4-byte BE block index. Keep small stack allocation. */
-    uint8_t salt_block[64];
+    uint8_t salt_block[64]; // small stack buffer for most salts
     size_t i, j, k;
 
-    if (salt_len + 4 > sizeof(salt_block)) {
-        /* very long salt - process by copying only what fits (rare) */
-        memcpy(salt_block, salt, sizeof(salt_block) - 4);
-    } else {
-        memcpy(salt_block, salt, salt_len);
-    }
-
     for (i = 1; i <= block_count; i++) {
-        /* append big-endian block index */
-        size_t base_len = salt_len;
+        size_t base_len = 0;
+
         if (salt_len + 4 <= sizeof(salt_block)) {
+            // Use stack buffer for small salts
+            memcpy(salt_block, salt, salt_len);
             salt_block[salt_len + 0] = (uint8_t)((i >> 24) & 0xFF);
             salt_block[salt_len + 1] = (uint8_t)((i >> 16) & 0xFF);
             salt_block[salt_len + 2] = (uint8_t)((i >> 8) & 0xFF);
-            salt_block[salt_len + 3] = (uint8_t)((i) & 0xFF);
+            salt_block[salt_len + 3] = (uint8_t)(i & 0xFF);
             base_len = salt_len + 4;
+
+            fossil_cryptic_auth_hmac_sha256(password, pass_len, salt_block, base_len, U);
         } else {
-            uint8_t tmp[8];
-            size_t copy_len = salt_len > sizeof(tmp) ? sizeof(tmp) : salt_len;
-            memcpy(tmp, salt, copy_len);
-            if (copy_len < sizeof(tmp)) {
-                memset(tmp + copy_len, 0, sizeof(tmp) - copy_len);
+            // Large salt: allocate temporary buffer
+            size_t tmp_size = salt_len + 4;
+            uint8_t *tmp = (uint8_t *)malloc(tmp_size);
+            if (!tmp) {
+                // allocation failed: zero output and exit
+                memset(out, 0, out_len);
+                return;
             }
+
+            memcpy(tmp, salt, salt_len);
             tmp[salt_len + 0] = (uint8_t)((i >> 24) & 0xFF);
             tmp[salt_len + 1] = (uint8_t)((i >> 16) & 0xFF);
             tmp[salt_len + 2] = (uint8_t)((i >> 8) & 0xFF);
-            tmp[salt_len + 3] = (uint8_t)((i) & 0xFF);
-            fossil_cryptic_auth_hmac_sha256(password, pass_len, tmp, salt_len + 4, U);
-            memcpy(T, U, 32);
-            for (j = 1; j < iterations; j++) {
-                fossil_cryptic_auth_hmac_sha256(password, pass_len, U, 32, U);
-                for (k = 0; k < 32; k++) T[k] ^= U[k];
-            }
-            size_t offset = (i - 1) * 32;
-            size_t to_copy = (out_len - offset) < 32 ? (out_len - offset) : 32;
-            memcpy(out + offset, T, to_copy);
-            continue;
+            tmp[salt_len + 3] = (uint8_t)(i & 0xFF);
+
+            fossil_cryptic_auth_hmac_sha256(password, pass_len, tmp, tmp_size, U);
+            free(tmp);
         }
 
-        fossil_cryptic_auth_hmac_sha256(password, pass_len, salt_block, base_len, U);
         memcpy(T, U, 32);
 
         for (j = 1; j < iterations; j++) {
             fossil_cryptic_auth_hmac_sha256(password, pass_len, U, 32, U);
-            for (k = 0; k < 32; k++) {
-                T[k] ^= U[k];
-            }
+            for (k = 0; k < 32; k++) T[k] ^= U[k];
         }
 
-        {
-            size_t offset = (i - 1) * 32;
-            size_t to_copy = (out_len - offset) < 32 ? (out_len - offset) : 32;
-            memcpy(out + offset, T, to_copy);
-        }
+        size_t offset = (i - 1) * 32;
+        size_t to_copy = (out_len - offset) < 32 ? (out_len - offset) : 32;
+        memcpy(out + offset, T, to_copy);
     }
 }
 
