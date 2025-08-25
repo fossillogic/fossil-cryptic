@@ -14,6 +14,7 @@
 #include "fossil/cryptic/auth.h"
 #include "fossil/cryptic/hash.h"
 #include <string.h>
+#include <stdlib.h>
 #include <stdint.h>
 
 /* ----------------------
