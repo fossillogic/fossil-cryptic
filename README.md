@@ -29,38 +29,34 @@
 - **Meson Build System**  
   Fossil Cryptic uses Meson for build configuration. If you don’t have Meson installed, please follow the installation instructions on the official [Meson website](https://mesonbuild.com/Getting-meson.html).
 
-### Adding Fossil Cryptic as a Dependency
+### Adding Dependency
 
-#### Using Meson
+#### Adding via Meson Git Wrap
 
-### **Install or Upgrade Meson** (version 1.3 or newer recommended):
+To add a git-wrap, place a `.wrap` file in `subprojects` with the Git repo URL and revision, then use `dependency('fossil-cryptic')` in `meson.build` so Meson can fetch and build it automatically.
 
-```sh
-   python -m pip install meson           # Install Meson
-   python -m pip install --upgrade meson # Upgrade Meson
+#### Adding via Conan GitHub repository
+
+ packages directly from a GitHub repository if it contains a valid `conanfile.py`.
+
+```bash
+conan install git+https://github.com/fossillogic/fossil-cryptic.git#v0.1.1 --name fossil_cryptic --build=missing
 ```
-###	Add the .wrap File
-Place a file named fossil-cryptic.wrap in your subprojects directory with the following content:
+
+#### Integrate the Dependency:
+
+Add the `fossil-cryptic.wrap` file in your `subprojects` directory and include the following content:
 
 ```ini
-# ======================
-# Git Wrap package definition
-# ======================
 [wrap-git]
 url = https://github.com/fossillogic/fossil-cryptic.git
-revision = v0.1.0
+revision = v0.1.1
 
 [provide]
-fossil-cryptic = fossil_cryptic_dep
+dependency_names = fossil-cryptic
 ```
 
-###	Integrate in Your meson.build
-Add the dependency by including this line:
-
-```meson
-cryptic_dep = dependency('fossil-cryptic')
-```
-
+**Note**: For the best experience, always use the latest releases. Visit the [releases](https://github.com/fossillogic/fossil-cryptic/releases) page for the latest versions.
 
 ## Build Configuration Options
 
