@@ -22,12 +22,12 @@
 - **Modular Design**  
   Easily extendable and customizable to fit your project’s specific cryptographic requirements.
 
-## Getting Started
+## ***Prerequisites***
 
-### Prerequisites
+To get started, ensure you have the following installed:
 
-- **Meson Build System**  
-  Fossil Cryptic uses Meson for build configuration. If you don’t have Meson installed, please follow the installation instructions on the official [Meson website](https://mesonbuild.com/Getting-meson.html).
+- **Meson Build System**: If you don’t have Meson `1.8.0` or newer installed, follow the installation instructions on the official [Meson website](https://mesonbuild.com/Getting-meson.html).
+- **Conan Package Manager**: If you prefer using Conan, ensure it is installed by following the instructions on the official [Conan website](https://docs.conan.io/en/latest/installation.html).
 
 ### Adding Dependency
 
