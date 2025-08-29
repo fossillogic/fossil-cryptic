@@ -17,3 +17,5 @@ fossil_cryptic_lib = library('fossil_cryptic',
 fossil_cryptic_dep = declare_dependency(
     link_with: [fossil_cryptic_lib],
     include_directories: dir)
+
+meson.override_dependency('fossil-cryptic', fossil_cryptic_dep)
