@@ -89,7 +89,7 @@ FOSSIL_TEST_CASE(c_test_poly1305_oneshot_vector) {
         0x01,0x03,0x80,0x8a,0xfb,0x0d,0xf1,0x2b,
         0x88,0x1d,0xc2,0x6a,0x81,0x9e,0xe6,0x6e
     };
-    const uint8_t msg[34] = "Cryptographic Forum Research Group";
+    const uint8_t msg[35] = "Cryptographic Forum Research Group";
     uint8_t tag[16];
     char hex[33];
     fossil_cryptic_auth_poly1305_auth(key, msg, 34, tag);
