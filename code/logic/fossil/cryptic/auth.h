@@ -217,16 +217,26 @@ namespace fossil {
 
     namespace cryptic {
 
+        /**
+         * @brief Auth class provides C++ wrappers for cryptographic primitives.
+         *
+         * This class exposes static methods for HMAC-SHA256, PBKDF2-HMAC-SHA256,
+         * Poly1305 (one-shot and streaming), constant-time comparison, ChaCha20 core,
+         * ChaCha20 stream XOR, and ChaCha20-Poly1305 AEAD encryption/decryption.
+         *
+         * All methods wrap the corresponding C functions, providing convenient
+         * C++ interfaces using std::array and std::vector for output buffers.
+         */
         class Auth {
         public:
             /**
              * @brief Computes HMAC-SHA256 for given data.
              *
-             * @param key       Pointer to the key.
-             * @param key_len   Length of the key in bytes.
-             * @param data      Pointer to the message data.
-             * @param data_len  Length of the message in bytes.
-             * @param out       32-byte buffer for the resulting MAC.
+             * @param key      Pointer to the key bytes.
+             * @param key_len  Length of the key in bytes.
+             * @param data     Pointer to the message data.
+             * @param data_len Length of the message in bytes.
+             * @return std::array<uint8_t, 32> containing the HMAC-SHA256 output.
              */
             static std::array<uint8_t, 32> hmac_sha256(const uint8_t* key, size_t key_len, const uint8_t* data, size_t data_len) {
                 std::array<uint8_t, 32> out;
@@ -235,15 +245,15 @@ namespace fossil {
             }
 
             /**
-             * @brief Computes PBKDF2-HMAC-SHA256.
+             * @brief Computes PBKDF2-HMAC-SHA256 derived key.
              *
-             * @param password   Pointer to the password.
-             * @param pass_len   Length of the password in bytes.
-             * @param salt       Pointer to the salt.
-             * @param salt_len   Length of the salt in bytes.
-             * @param iterations Number of iterations.
-             * @param out_len   Length of the output key in bytes.
-             * @return Derived key.
+             * @param password   Pointer to the password bytes.
+             * @param pass_len   Length of the password.
+             * @param salt       Pointer to the salt bytes.
+             * @param salt_len   Length of the salt.
+             * @param iterations Number of iterations (recommended >= 100000).
+             * @param out_len    Desired length of the derived key.
+             * @return std::vector<uint8_t> containing the derived key.
              */
             static std::vector<uint8_t> pbkdf2_sha256(const uint8_t* password, size_t pass_len, const uint8_t* salt, size_t salt_len, uint32_t iterations, size_t out_len) {
                 std::vector<uint8_t> out(out_len);
@@ -252,12 +262,12 @@ namespace fossil {
             }
 
             /**
-             * @brief Computes Poly1305 MAC for given message.
+             * @brief Computes Poly1305 MAC for a given message and key.
              *
-             * @param key       Pointer to the key.
-             * @param msg      Pointer to the message data.
-             * @param msg_len  Length of the message in bytes.
-             * @return 16-byte Poly1305 tag.
+             * @param key     32-byte Poly1305 key.
+             * @param msg     Pointer to the message bytes.
+             * @param msg_len Length of the message.
+             * @return std::array<uint8_t, 16> containing the Poly1305 tag.
              */
             static std::array<uint8_t, 16> poly1305_auth(const uint8_t key[32], const uint8_t* msg, size_t msg_len) {
                 std::array<uint8_t, 16> tag;
@@ -265,6 +275,127 @@ namespace fossil {
                 return tag;
             }
 
+            /**
+             * @brief Initializes Poly1305 streaming context with a 32-byte key.
+             *
+             * @param ctx Pointer to Poly1305 context.
+             * @param key 32-byte Poly1305 key.
+             */
+            static void poly1305_init(fossil_cryptic_auth_poly1305_ctx_t* ctx, const uint8_t key[32]) {
+                fossil_cryptic_auth_poly1305_init(ctx, key);
+            }
+
+            /**
+             * @brief Updates Poly1305 context with message bytes.
+             *
+             * Can be called multiple times for streaming input.
+             *
+             * @param ctx     Pointer to Poly1305 context.
+             * @param msg     Pointer to message bytes.
+             * @param msg_len Length of message bytes.
+             */
+            static void poly1305_update(fossil_cryptic_auth_poly1305_ctx_t* ctx, const uint8_t* msg, size_t msg_len) {
+                fossil_cryptic_auth_poly1305_update(ctx, msg, msg_len);
+            }
+
+            /**
+             * @brief Finalizes Poly1305 and produces a 16-byte tag.
+             *
+             * After finalize, context may be reused by calling init() again.
+             *
+             * @param ctx Pointer to Poly1305 context.
+             * @param tag 16-byte output tag.
+             */
+            static void poly1305_finish(fossil_cryptic_auth_poly1305_ctx_t* ctx, uint8_t tag[16]) {
+                fossil_cryptic_auth_poly1305_finish(ctx, tag);
+            }
+
+            /**
+             * @brief Performs constant-time memory comparison.
+             *
+             * Returns true if buffers are equal, false otherwise.
+             *
+             * @param a   Pointer to first buffer.
+             * @param b   Pointer to second buffer.
+             * @param len Length in bytes.
+             * @return true if equal, false if different.
+             */
+            static bool consttime_equal(const uint8_t* a, const uint8_t* b, size_t len) {
+                return fossil_cryptic_auth_consttime_equal(a, b, len) == 1;
+            }
+
+            /**
+             * @brief Computes a single 64-byte ChaCha20 block.
+             *
+             * @param key     32-byte key.
+             * @param nonce   12-byte nonce.
+             * @param counter 32-bit block counter.
+             * @return std::array<uint8_t, 64> containing the ChaCha20 block.
+             */
+            static std::array<uint8_t, 64> chacha20_block(const uint8_t key[32], const uint8_t nonce[12], uint32_t counter) {
+                std::array<uint8_t, 64> out;
+                fossil_cryptic_auth_chacha20_block(key, nonce, counter, out.data());
+                return out;
+            }
+
+            /**
+             * @brief XORs input with ChaCha20 keystream (encrypt/decrypt).
+             *
+             * Produces out[i] = in[i] ^ keystream[i].
+             *
+             * @param key      32-byte key.
+             * @param nonce    12-byte nonce.
+             * @param counter  Initial 32-bit block counter.
+             * @param in       Pointer to input bytes.
+             * @param len      Number of bytes to process.
+             * @return std::vector<uint8_t> containing the output.
+             */
+            static std::vector<uint8_t> chacha20_xor(const uint8_t key[32], const uint8_t nonce[12], uint32_t counter, const uint8_t* in, size_t len) {
+                std::vector<uint8_t> out(len);
+                fossil_cryptic_auth_chacha20_xor(key, nonce, counter, in, out.data(), len);
+                return out;
+            }
+
+            /**
+             * @brief Encrypts plaintext with ChaCha20-Poly1305 (IETF).
+             *
+             * Produces ciphertext and a 16-byte authentication tag.
+             *
+             * @param key        32-byte key.
+             * @param nonce      12-byte nonce.
+             * @param aad        Pointer to additional authenticated data (AAD).
+             * @param aad_len    Length of AAD.
+             * @param plaintext  Pointer to plaintext bytes.
+             * @param pt_len     Length of plaintext.
+             * @param tag        16-byte output tag.
+             * @return std::vector<uint8_t> containing the ciphertext.
+             */
+            static std::vector<uint8_t> chacha20_poly1305_encrypt(const uint8_t key[32], const uint8_t nonce[12], const uint8_t* aad, size_t aad_len, const uint8_t* plaintext, size_t pt_len, uint8_t tag[16]) {
+                std::vector<uint8_t> ciphertext(pt_len);
+                fossil_cryptic_auth_chacha20_poly1305_encrypt(key, nonce, aad, aad_len, plaintext, pt_len, ciphertext.data(), tag);
+                return ciphertext;
+            }
+
+            /**
+             * @brief Decrypts ciphertext with ChaCha20-Poly1305 (IETF) and verifies tag.
+             *
+             * Returns plaintext and sets ok to true if tag is valid, false otherwise.
+             *
+             * @param key        32-byte key.
+             * @param nonce      12-byte nonce.
+             * @param aad        Pointer to AAD bytes.
+             * @param aad_len    Length of AAD.
+             * @param ciphertext Pointer to ciphertext bytes.
+             * @param ct_len     Length of ciphertext.
+             * @param tag        16-byte tag to verify.
+             * @param ok         Output flag: true if tag is valid, false otherwise.
+             * @return std::vector<uint8_t> containing the plaintext.
+             */
+            static std::vector<uint8_t> chacha20_poly1305_decrypt(const uint8_t key[32], const uint8_t nonce[12], const uint8_t* aad, size_t aad_len, const uint8_t* ciphertext, size_t ct_len, const uint8_t tag[16], bool& ok) {
+                std::vector<uint8_t> plaintext(ct_len);
+                ok = fossil_cryptic_auth_chacha20_poly1305_decrypt(key, nonce, aad, aad_len, ciphertext, ct_len, plaintext.data(), tag) == 1;
+                return plaintext;
+            }
         };
 
     } // namespace cryptic
