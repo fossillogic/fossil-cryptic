@@ -266,6 +266,7 @@ FOSSIL_TEST_CASE(c_test_poly1305_streaming_partial_blocks) {
     ASSUME_ITS_TRUE(fossil_cryptic_auth_consttime_equal(tag1, tag2, 16));
 }
 
+
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
