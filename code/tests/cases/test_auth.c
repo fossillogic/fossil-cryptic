@@ -51,6 +51,65 @@ FOSSIL_TEARDOWN(c_auth_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
+FOSSIL_TEST_CASE(c_test_hash_password_and_verify) {
+    // Basic password hashing and verification
+    const char *password = "hunter2";
+    char salt[32];
+    char hash[128];
+
+    // Generate salt
+    int rc = fossil_cryptic_auth_generate_salt(salt, sizeof(salt));
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+
+    // Hash password
+    rc = fossil_cryptic_auth_hash_password(password, salt, "fnv1a", "u32", "hex", hash, sizeof(hash));
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+
+    // Verify password
+    int valid = fossil_cryptic_auth_verify_password(password, salt, hash, "fnv1a", "u32", "hex");
+    ASSUME_ITS_TRUE(valid);
+
+    // Wrong password should fail
+    valid = fossil_cryptic_auth_verify_password("wrongpass", salt, hash, "fnv1a", "u32", "hex");
+    ASSUME_ITS_FALSE(valid);
+}
+
+FOSSIL_TEST_CASE(c_test_sign_and_verify_token) {
+    // Token signing and verification
+    const char *key = "supersecret";
+    const char *payload = "user:42";
+    char sig[64];
+
+    int rc = fossil_cryptic_auth_sign_token(key, payload, "fnv1a", "u32", "hex", sig, sizeof(sig));
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+
+    int valid = fossil_cryptic_auth_verify_token(key, payload, sig, "fnv1a", "u32", "hex");
+    ASSUME_ITS_TRUE(valid);
+
+    // Wrong key should fail
+    valid = fossil_cryptic_auth_verify_token("badkey", payload, sig, "fnv1a", "u32", "hex");
+    ASSUME_ITS_FALSE(valid);
+
+    // Wrong payload should fail
+    valid = fossil_cryptic_auth_verify_token(key, "user:99", sig, "fnv1a", "u32", "hex");
+    ASSUME_ITS_FALSE(valid);
+}
+
+FOSSIL_TEST_CASE(c_test_generate_salt_and_challenge) {
+    // Salt and challenge generation
+    char salt[32];
+    char challenge[64];
+
+    int rc = fossil_cryptic_auth_generate_salt(salt, sizeof(salt));
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    ASSUME_ITS_TRUE(strlen(salt) > 0);
+
+    rc = fossil_cryptic_auth_generate_challenge(challenge, sizeof(challenge));
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    ASSUME_ITS_TRUE(strlen(challenge) > 0);
+}
+
+// Existing test cases
 FOSSIL_TEST_CASE(c_test_hmac_sha256_vectors) {
     // Test vector from RFC 4231, Test Case 1
     const uint8_t key[20] = {
@@ -271,6 +330,9 @@ FOSSIL_TEST_CASE(c_test_poly1305_streaming_partial_blocks) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_auth_tests) {
+    FOSSIL_TEST_ADD(c_auth_fixture, c_test_hash_password_and_verify);
+    FOSSIL_TEST_ADD(c_auth_fixture, c_test_sign_and_verify_token);
+    FOSSIL_TEST_ADD(c_auth_fixture, c_test_generate_salt_and_challenge);
     FOSSIL_TEST_ADD(c_auth_fixture, c_test_hmac_sha256_vectors);
     FOSSIL_TEST_ADD(c_auth_fixture, c_test_pbkdf2_sha256_vector);
     FOSSIL_TEST_ADD(c_auth_fixture, c_test_poly1305_oneshot_vector);

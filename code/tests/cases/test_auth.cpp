@@ -51,7 +51,50 @@ FOSSIL_TEARDOWN(cpp_auth_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(cpp_test_hmacpp_sha256_vectors) {
+FOSSIL_TEST_CASE(cpp_test_hash_password_and_verify) {
+    // Basic password hashing and verification using C++ wrapper
+    std::string password = "hunter2";
+    std::string salt = fossil::cryptic::Auth::generate_salt(24);
+    ASSUME_ITS_TRUE(!salt.empty());
+
+    std::string hash = fossil::cryptic::Auth::hash_password(password, salt, "fnv1a", "u32", "hex");
+    ASSUME_ITS_TRUE(!hash.empty());
+
+    bool valid = fossil::cryptic::Auth::verify_password(password, salt, hash, "fnv1a", "u32", "hex");
+    ASSUME_ITS_TRUE(valid);
+
+    valid = fossil::cryptic::Auth::verify_password("wrongpass", salt, hash, "fnv1a", "u32", "hex");
+    ASSUME_ITS_FALSE(valid);
+}
+
+FOSSIL_TEST_CASE(cpp_test_sign_and_verify_token) {
+    // Token signing and verification using C++ wrapper
+    std::string key = "supersecret";
+    std::string payload = "user:42";
+    std::string sig = fossil::cryptic::Auth::sign_token(key, payload, "fnv1a", "u32", "hex");
+    ASSUME_ITS_TRUE(!sig.empty());
+
+    bool valid = fossil::cryptic::Auth::verify_token(key, payload, sig, "fnv1a", "u32", "hex");
+    ASSUME_ITS_TRUE(valid);
+
+    valid = fossil::cryptic::Auth::verify_token("badkey", payload, sig, "fnv1a", "u32", "hex");
+    ASSUME_ITS_FALSE(valid);
+
+    valid = fossil::cryptic::Auth::verify_token(key, "user:99", sig, "fnv1a", "u32", "hex");
+    ASSUME_ITS_FALSE(valid);
+}
+
+FOSSIL_TEST_CASE(cpp_test_generate_salt_and_challenge) {
+    // Salt and challenge generation using C++ wrapper
+    std::string salt = fossil::cryptic::Auth::generate_salt(32);
+    ASSUME_ITS_TRUE(!salt.empty());
+
+    std::string challenge = fossil::cryptic::Auth::generate_challenge(64);
+    ASSUME_ITS_TRUE(!challenge.empty());
+}
+
+// Existing test cases
+FOSSIL_TEST_CASE(cpp_test_hmac_sha256_vectors) {
     // Test vector from RFC 4231, Test Case 1
     const uint8_t key[20] = {
         0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,0x0b,
@@ -90,7 +133,7 @@ FOSSIL_TEST_CASE(cpp_test_poly1305_oneshot_vector) {
     const uint8_t msg[35] = "Cryptographic Forum Research Group";
     auto tag = fossil::cryptic::Auth::poly1305_auth(key, msg, 34);
     char hex[33];
-    for (int i = 0; i < 16; ++i) snprintf(hex + i*2, 3, "%02x", tag[i]);
+    for (int i = 0; i < 16; ++i) sprintf(hex + i*2, "%02x", tag[i]);
     hex[32] = 0;
     ASSUME_ITS_EQUAL_CSTR(hex, "a8061dc1305136c6c22b8baf0c0127a9");
 }
@@ -108,10 +151,10 @@ FOSSIL_TEST_CASE(cpp_test_poly1305_streaming_equivalence) {
     fossil::cryptic::Auth::poly1305_init(&ctx, key);
     fossil::cryptic::Auth::poly1305_update(&ctx, msg, 32);
     fossil::cryptic::Auth::poly1305_update(&ctx, msg + 32, 32);
-    std::array<uint8_t, 16> tag2;
-    fossil::cryptic::Auth::poly1305_finish(&ctx, tag2.data());
+    uint8_t tag2[16];
+    fossil::cryptic::Auth::poly1305_finish(&ctx, tag2);
 
-    ASSUME_ITS_TRUE(fossil::cryptic::Auth::consttime_equal(tag1.data(), tag2.data(), 16));
+    ASSUME_ITS_TRUE(fossil::cryptic::Auth::consttime_equal(tag1.data(), tag2, 16));
 }
 
 FOSSIL_TEST_CASE(cpp_test_consttime_equal) {
@@ -157,13 +200,12 @@ FOSSIL_TEST_CASE(cpp_test_chacha20_xor_roundtrip) {
 }
 
 FOSSIL_TEST_CASE(cpp_test_chacha20_poly1305_aead_encrypt_decrypt) {
-    // Simple AEAD roundtrip
+    // Simple AEAD roundtrip using C++ wrapper
     uint8_t key[32] = {0};
     uint8_t nonce[12] = {0};
     uint8_t aad[8] = {1,2,3,4,5,6,7,8};
     uint8_t pt[32];
     for (int i = 0; i < 32; ++i) pt[i] = (uint8_t)i;
-
     uint8_t tag[16];
     auto ct = fossil::cryptic::Auth::chacha20_poly1305_encrypt(key, nonce, aad, 8, pt, 32, tag);
     bool ok = false;
@@ -174,7 +216,7 @@ FOSSIL_TEST_CASE(cpp_test_chacha20_poly1305_aead_encrypt_decrypt) {
 }
 
 FOSSIL_TEST_CASE(cpp_test_chacha20_poly1305_aead_tag_fail) {
-    // Tag mismatch should fail
+    // Tag mismatch should fail using C++ wrapper
     uint8_t key[32] = {0};
     uint8_t nonce[12] = {0};
     uint8_t aad[8] = {1,2,3,4,5,6,7,8};
@@ -182,15 +224,15 @@ FOSSIL_TEST_CASE(cpp_test_chacha20_poly1305_aead_tag_fail) {
     uint8_t tag[16];
     auto ct = fossil::cryptic::Auth::chacha20_poly1305_encrypt(key, nonce, aad, 8, pt, 16, tag);
     tag[0] ^= 0xFF; // Corrupt tag
-    bool ok = false;
+    bool ok = true;
     auto dec = fossil::cryptic::Auth::chacha20_poly1305_decrypt(key, nonce, aad, 8, ct.data(), 16, tag, ok);
     ASSUME_ITS_FALSE(ok);
 }
 
 // Additional HMAC-SHA256 test cases
 
-FOSSIL_TEST_CASE(cpp_test_hmacpp_sha256_empty_key_data) {
-    // Empty key and data
+FOSSIL_TEST_CASE(cpp_test_hmac_sha256_empty_key_data) {
+    // Empty key and data using C++ wrapper
     const uint8_t key[1] = {0};
     const uint8_t data[1] = {0};
     auto mac = fossil::cryptic::Auth::hmac_sha256(key, 0, data, 0);
@@ -200,8 +242,8 @@ FOSSIL_TEST_CASE(cpp_test_hmacpp_sha256_empty_key_data) {
     ASSUME_ITS_EQUAL_CSTR(hex, "b6159f9a3b7df61c6d961af8d2b9e7e9c6f6a6a7c8a1e9b6d2c3e6c3e6c3e6c3");
 }
 
-FOSSIL_TEST_CASE(cpp_test_hmacpp_sha256_long_key) {
-    // Key longer than block size (64 bytes)
+FOSSIL_TEST_CASE(cpp_test_hmac_sha256_long_key) {
+    // Key longer than block size (64 bytes) using C++ wrapper
     uint8_t key[80];
     for (int i = 0; i < 80; ++i) key[i] = (uint8_t)i;
     const char *data = "Test message";
@@ -214,7 +256,7 @@ FOSSIL_TEST_CASE(cpp_test_hmacpp_sha256_long_key) {
 }
 
 FOSSIL_TEST_CASE(cpp_test_pbkdf2_sha256_minimal) {
-    // Minimal PBKDF2 test: 1 iteration, 1-byte password/salt
+    // Minimal PBKDF2 test: 1 iteration, 1-byte password/salt using C++ wrapper
     uint8_t password[1] = {0x01};
     uint8_t salt[1] = {0x02};
     auto dk = fossil::cryptic::Auth::pbkdf2_sha256(password, 1, salt, 1, 1, 32);
@@ -224,26 +266,30 @@ FOSSIL_TEST_CASE(cpp_test_pbkdf2_sha256_minimal) {
 }
 
 FOSSIL_TEST_CASE(cpp_test_pbkdf2_sha256_high_iter) {
-    // High iteration count (small output for speed)
+    // High iteration count (small output for speed) using C++ wrapper
     const char *password = "high-iter";
     const char *salt = "salt";
-    auto dk = fossil::cryptic::Auth::pbkdf2_sha256((const uint8_t*)password, strlen(password), (const uint8_t*)salt, strlen(salt), 1000, 8);
+    auto dk = fossil::cryptic::Auth::pbkdf2_sha256(
+        (const uint8_t*)password, strlen(password),
+        (const uint8_t*)salt, strlen(salt),
+        1000, 8
+    );
     // Just check output is deterministic
     ASSUME_ITS_TRUE(dk[0] != 0);
 }
 
 FOSSIL_TEST_CASE(cpp_test_poly1305_empty_msg) {
-    // Poly1305 with empty message
+    // Poly1305 with empty message using C++ wrapper
     uint8_t key[32] = {0};
     auto tag = fossil::cryptic::Auth::poly1305_auth(key, NULL, 0);
     char hex[33];
-    for (int i = 0; i < 16; ++i) snprintf(hex + i*2, 3, "%02x", tag[i]);
+    for (int i = 0; i < 16; ++i) sprintf(hex + i*2, "%02x", tag[i]);
     hex[32] = 0;
     ASSUME_ITS_TRUE(hex[0] != '0');
 }
 
 FOSSIL_TEST_CASE(cpp_test_poly1305_streaming_partial_blocks) {
-    // Streaming Poly1305 with partial blocks
+    // Streaming Poly1305 with partial blocks using C++ wrapper
     uint8_t key[32] = {0};
     uint8_t msg[20];
     for (int i = 0; i < 20; ++i) msg[i] = (uint8_t)i;
@@ -253,17 +299,21 @@ FOSSIL_TEST_CASE(cpp_test_poly1305_streaming_partial_blocks) {
     fossil::cryptic::Auth::poly1305_init(&ctx, key);
     fossil::cryptic::Auth::poly1305_update(&ctx, msg, 10);
     fossil::cryptic::Auth::poly1305_update(&ctx, msg + 10, 10);
-    std::array<uint8_t, 16> tag2;
-    fossil::cryptic::Auth::poly1305_finish(&ctx, tag2.data());
+    uint8_t tag2[16];
+    fossil::cryptic::Auth::poly1305_finish(&ctx, tag2);
 
-    ASSUME_ITS_TRUE(fossil::cryptic::Auth::consttime_equal(tag1.data(), tag2.data(), 16));
+    ASSUME_ITS_TRUE(fossil::cryptic::Auth::consttime_equal(tag1.data(), tag2, 16));
 }
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_auth_tests) {
-    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_hmacpp_sha256_vectors);
+    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_hash_password_and_verify);
+    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_sign_and_verify_token);
+    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_generate_salt_and_challenge);
+    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_hmac_sha256_vectors);
     FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_pbkdf2_sha256_vector);
     FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_poly1305_oneshot_vector);
     FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_poly1305_streaming_equivalence);
@@ -272,8 +322,8 @@ FOSSIL_TEST_GROUP(cpp_auth_tests) {
     FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_chacha20_xor_roundtrip);
     FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_chacha20_poly1305_aead_encrypt_decrypt);
     FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_chacha20_poly1305_aead_tag_fail);
-    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_hmacpp_sha256_empty_key_data);
-    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_hmacpp_sha256_long_key);
+    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_hmac_sha256_empty_key_data);
+    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_hmac_sha256_long_key);
     FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_pbkdf2_sha256_minimal);
     FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_pbkdf2_sha256_high_iter);
     FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_poly1305_empty_msg);
