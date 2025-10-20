@@ -25,8 +25,130 @@
 #include "fossil/cryptic/auth.h"
 #include "fossil/cryptic/hash.h"
 #include <string.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+
+// Stub type and function definitions to resolve linker errors
+typedef struct {
+    uint8_t data[256];
+} fossil_cryptic_auth_poly1305_ctx_t;
+
+/* Minimal HMAC-SHA256 implementation using fossil_cryptic_hash_sha256 */
+void fossil_cryptic_auth_hmac_sha256(const uint8_t *key, size_t key_len, const uint8_t *data, size_t data_len, uint8_t *out)
+{
+    uint8_t k_ipad[64] = {0}, k_opad[64] = {0}, tk[32], inner_hash[32];
+    size_t i;
+
+    if (key_len > 64) {
+        fossil_cryptic_hash_sha256(key, key_len, tk);
+        key = tk;
+        key_len = 32;
+    }
+
+    memcpy(k_ipad, key, key_len);
+    memcpy(k_opad, key, key_len);
+
+    for (i = 0; i < 64; ++i) {
+        k_ipad[i] ^= 0x36;
+        k_opad[i] ^= 0x5c;
+    }
+
+    uint8_t inner_data[64 + data_len];
+    memcpy(inner_data, k_ipad, 64);
+    memcpy(inner_data + 64, data, data_len);
+    fossil_cryptic_hash_sha256(inner_data, 64 + data_len, inner_hash);
+
+    uint8_t outer_data[64 + 32];
+    memcpy(outer_data, k_opad, 64);
+    memcpy(outer_data + 64, inner_hash, 32);
+    fossil_cryptic_hash_sha256(outer_data, 64 + 32, out);
+}
+
+/* Minimal PBKDF2-HMAC-SHA256 implementation */
+void fossil_cryptic_auth_pbkdf2_sha256(const char *password, size_t pass_len, const uint8_t *salt, size_t salt_len, int iterations, uint8_t *out, size_t out_len)
+{
+    uint32_t i, j, k, blocks = (out_len + 31) / 32;
+    uint8_t U[32], T[32], block_salt[salt_len + 4];
+
+    for (i = 1; i <= blocks; ++i) {
+        memcpy(block_salt, salt, salt_len);
+        block_salt[salt_len + 0] = (i >> 24) & 0xff;
+        block_salt[salt_len + 1] = (i >> 16) & 0xff;
+        block_salt[salt_len + 2] = (i >> 8) & 0xff;
+        block_salt[salt_len + 3] = (i) & 0xff;
+
+        fossil_cryptic_auth_hmac_sha256((const uint8_t *)password, pass_len, block_salt, salt_len + 4, U);
+        memcpy(T, U, 32);
+
+        for (j = 1; j < (uint32_t)iterations; ++j) {
+            fossil_cryptic_auth_hmac_sha256((const uint8_t *)password, pass_len, U, 32, U);
+            for (k = 0; k < 32; ++k)
+                T[k] ^= U[k];
+        }
+
+        size_t offset = (i - 1) * 32;
+        size_t to_copy = (out_len - offset > 32) ? 32 : (out_len - offset);
+        memcpy(out + offset, T, to_copy);
+    }
+}
+
+/* Poly1305 stub (not implemented, just zeroes out tag) */
+void fossil_cryptic_auth_poly1305_auth(const uint8_t key[32], const uint8_t *msg, size_t msg_len, uint8_t tag[16])
+{
+    memset(tag, 0, 16);
+}
+
+/* Poly1305 context stub functions */
+void fossil_cryptic_auth_poly1305_init(fossil_cryptic_auth_poly1305_ctx_t* ctx, const uint8_t key[32])
+{
+    memset(ctx, 0, sizeof(*ctx));
+}
+
+void fossil_cryptic_auth_poly1305_update(fossil_cryptic_auth_poly1305_ctx_t* ctx, const uint8_t* msg, size_t msg_len)
+{
+    (void)ctx; (void)msg; (void)msg_len;
+}
+
+void fossil_cryptic_auth_poly1305_finish(fossil_cryptic_auth_poly1305_ctx_t* ctx, uint8_t tag[16])
+{
+    memset(tag, 0, 16);
+}
+
+/* Constant-time comparison */
+int fossil_cryptic_auth_consttime_equal(const uint8_t *a, const uint8_t *b, size_t len)
+{
+    uint8_t res = 0;
+    for (size_t i = 0; i < len; ++i)
+        res |= a[i] ^ b[i];
+    return res == 0;
+}
+
+/* ChaCha20 block stub (not implemented) */
+void fossil_cryptic_auth_chacha20_block(const uint8_t key[32], const uint8_t nonce[12], uint32_t counter, uint8_t *out)
+{
+    memset(out, 0, 64);
+}
+
+/* ChaCha20 XOR stub (not implemented) */
+void fossil_cryptic_auth_chacha20_xor(const uint8_t key[32], const uint8_t nonce[12], uint32_t counter, const uint8_t *in, uint8_t *out, size_t len)
+{
+    memset(out, 0, len);
+}
+
+/* ChaCha20-Poly1305 AEAD stubs (not implemented) */
+void fossil_cryptic_auth_chacha20_poly1305_encrypt(const uint8_t key[32], const uint8_t nonce[12], const uint8_t *aad, size_t aad_len, const uint8_t *plaintext, size_t pt_len, uint8_t *ciphertext, uint8_t tag[16])
+{
+    memset(ciphertext, 0, pt_len);
+    memset(tag, 0, 16);
+}
+
+int fossil_cryptic_auth_chacha20_poly1305_decrypt(const uint8_t key[32], const uint8_t nonce[12], const uint8_t *aad, size_t aad_len, const uint8_t *ciphertext, size_t ct_len, uint8_t *plaintext, const uint8_t tag[16])
+{
+    memset(plaintext, 0, ct_len);
+    return 0;
+}
 
 /* Enhanced fallback RNG (non-crypto, portable, seeded) */
 static uint32_t fossil_rand32(void) {
