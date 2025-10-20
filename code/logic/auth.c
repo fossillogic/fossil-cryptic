@@ -24,6 +24,9 @@
  */
 #include "fossil/cryptic/auth.h"
 #include "fossil/cryptic/hash.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // HMAC block size for 64-bit hash (max 64 bytes)
 #define HMAC_BLOCK_SIZE 64
