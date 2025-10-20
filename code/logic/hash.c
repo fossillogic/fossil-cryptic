@@ -851,12 +851,6 @@ char *fossil_cryptic_hash_hex_auto(const void *data, size_t len, const char *alg
 
 /* ------------------------ options struct API ------------------------ */
 
-typedef struct {
-    const char *alg;      /* algorithm name */
-    const char *bits;     /* "u32", "u64", "auto" */
-    const char *base;     /* "hex", "base64", "base62", "base36", "auto" */
-} fossil_cryptic_hash_opts;
-
 /*
  * int fossil_cryptic_hash_with_opts(const void *data, size_t len,
  *                                   const fossil_cryptic_hash_opts *opts,

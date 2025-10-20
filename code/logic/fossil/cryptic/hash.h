@@ -149,18 +149,10 @@ int fossil_cryptic_base36_encode(const void *in, size_t inlen, char *out, size_t
  * Options-based API
  * ------------------------------------------------------------------------ */
 
-/**
- * @brief Options struct for hashing.
- *
- * All fields are optional; set to NULL/0 for defaults.
- * Keys are string IDs ("alg", "bit", "base", ...).
- */
-typedef struct fossil_cryptic_hash_opts {
-    const char *alg;      /**< Algorithm string ID ("sha256", etc) */
-    const char *bit;      /**< Bit width or hash type ("u32", "sha512", "auto") */
-    const char *base;     /**< Output encoding ("hex", "base62", "base36", "base64", "auto") */
-    size_t     outlen;    /**< Output buffer size (0 = default) */
-    /* Future: add more options as needed */
+typedef struct {
+    const char *alg;      /* algorithm name */
+    const char *bits;     /* "u32", "u64", "auto" */
+    const char *base;     /* "hex", "base64", "base62", "base36", "auto" */
 } fossil_cryptic_hash_opts;
 
 /**
