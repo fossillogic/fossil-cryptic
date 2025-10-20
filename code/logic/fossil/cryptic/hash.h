@@ -32,220 +32,181 @@
 extern "C" {
 #endif
 
-/* ---------------------
- * Types and constants
- * -------------------*/
-
-/* Add in the enum */
-typedef enum {
-    FOSSIL_CRYPTIC_HASH_ALG_CRC32 = 1,
-    FOSSIL_CRYPTIC_HASH_ALG_FNV1A32,
-    FOSSIL_CRYPTIC_HASH_ALG_FNV1A64,
-    FOSSIL_CRYPTIC_HASH_ALG_MURMUR3_32,
-    FOSSIL_CRYPTIC_HASH_ALG_SHA256     /* NEW */
-} fossil_cryptic_hash_alg_t;
-
-/* SHA-256 context (internal, but exposed for size) */
-typedef struct {
-    uint32_t state[8];
-    uint64_t bitlen;
-    uint8_t  buffer[64];
-} fossil_cryptic_hash_sha256_ctx_t;
-
-/* Add to generic context union */
-typedef struct {
-    fossil_cryptic_hash_alg_t alg;
-    union {
-        uint32_t crc32;
-        uint32_t fnv1a32;
-        uint64_t fnv1a64;
-        fossil_cryptic_hash_sha256_ctx_t sha256;
-    } state;
-} fossil_cryptic_hash_ctx_t;
-
-// functions
-
-/* --- One-shot SHA-256 --- */
+/* ------------------------------------------------------------------------
+ * Algorithm identifiers (string-based)
+ *
+ * Available (case-insensitive):
+ *   "fnv1a"      - FNV-1a 32-bit
+ *   "fnv1a64"    - FNV-1a 64-bit
+ *   "crc32"      - CRC32 (IEEE 802.3 polynomial)
+ *   "murmur3"    - MurmurHash3 x86 32-bit
+ *   "jenkins"    - Jenkins one-at-a-time (32-bit)
+ *   "sha1"       - SHA-1 (160-bit)
+ *   "sha256"     - SHA-256 (256-bit)
+ *   "sha512"     - SHA-512 (512-bit)
+ *
+ * More algorithms can be added by extending canonical_alg() in the source.
+ * ------------------------------------------------------------------------ */
 
 /**
- * @brief Compute a SHA-256 digest for a complete data buffer in one call.
+ * @brief Get a list of available algorithms.
  *
- * This is a one-shot API — it processes the entire data block and produces
- * the 256-bit digest without maintaining a streaming context.
- *
- * @param data Pointer to the input data buffer.
- * @param len  Length of the input data in bytes.
- * @param out  Pointer to a 32-byte array where the resulting hash will be stored.
+ * @return A newline-separated string listing all supported algorithm IDs.
+ *         The string is statically allocated (do not free).
  */
-void fossil_cryptic_hash_sha256(const void *data, size_t len, uint8_t out[32]);
+const char *fossil_cryptic_hash_list(void);
 
-/* --- Streaming SHA-256 --- */
+/* ------------------------------------------------------------------------
+ * Core Hash APIs
+ * ------------------------------------------------------------------------ */
 
 /**
- * @brief Initialize a SHA-256 hashing context for incremental hashing.
+ * @brief Compute a 32-bit hash value for a data buffer.
  *
- * This function prepares the provided SHA-256 context for accepting data.
- * It must be called before any calls to fossil_cryptic_hash_sha256_update().
- *
- * @param ctx Pointer to a SHA-256 context structure.
+ * @param data   Pointer to input data.
+ * @param len    Number of bytes in input.
+ * @param alg    Algorithm string ID ("fnv1a", "crc32", etc).
+ * @return 32-bit hash value.
  */
-void fossil_cryptic_hash_sha256_init(fossil_cryptic_hash_sha256_ctx_t *ctx);
+uint32_t fossil_cryptic_hash_u32(const void *data, size_t len, const char *alg);
 
 /**
- * @brief Feed data into the SHA-256 context.
+ * @brief Compute a 64-bit hash value for a data buffer.
  *
- * This function can be called multiple times to process data in chunks.
- * The context must have been initialized with fossil_cryptic_hash_sha256_init().
- *
- * @param ctx  Pointer to a SHA-256 context structure.
- * @param data Pointer to the data to be hashed.
- * @param len  Number of bytes of data to hash.
+ * @param data   Pointer to input data.
+ * @param len    Number of bytes in input.
+ * @param alg    Algorithm string ID.
+ * @return 64-bit hash value (native or promoted combination if no native 64).
  */
-void fossil_cryptic_hash_sha256_update(fossil_cryptic_hash_sha256_ctx_t *ctx, const void *data, size_t len);
+uint64_t fossil_cryptic_hash_u64(const void *data, size_t len, const char *alg);
+
+/* ------------------------------------------------------------------------
+ * Encoded Output Interface
+ * ------------------------------------------------------------------------ */
 
 /**
- * @brief Finalize the SHA-256 hash computation and produce the digest.
+ * @brief Compute a hash and encode to string according to preferences.
  *
- * Once this function is called, the context should not be reused unless
- * reinitialized. It writes the final 256-bit hash to the output buffer.
+ * @param data       Input data buffer.
+ * @param len        Length of data in bytes.
+ * @param alg        Algorithm string ID.
+ * @param bit_pref   "u32", "u64", "sha1", "sha256", "sha512", or "auto" (auto picks best).
+ * @param base_pref  "hex", "base64", "base62", "base36", or "auto" (auto → "hex").
+ * @param out        Output buffer for encoded string.
+ * @param outlen     Size of output buffer in bytes.
  *
- * @param ctx Pointer to the SHA-256 context structure.
- * @param out Pointer to a 32-byte array for storing the digest.
+ * @return 0 on success, nonzero on error (buffer too small, etc.).
+ *
+ * Example:
+ *     char out[128];
+ *     fossil_cryptic_hash_to_str("hello", 5, "sha256", "auto", "base62", out, sizeof(out));
+ *     printf("Hash: %s\n", out);
  */
-void fossil_cryptic_hash_sha256_final(fossil_cryptic_hash_sha256_ctx_t *ctx, uint8_t out[32]);
+int fossil_cryptic_hash_to_str(const void *data, size_t len,
+                               const char *alg, const char *bit_pref,
+                               const char *base_pref,
+                               char *out, size_t outlen);
 
 /**
- * @brief Convert a 32-byte SHA-256 digest to a hexadecimal string.
+ * @brief Convenience helper: compute hash and return a static hex string.
  *
- * Produces a null-terminated, lowercase hexadecimal string representation
- * of the given digest. The destination buffer must be at least 65 bytes long.
+ * Not thread-safe (uses a static internal buffer).
  *
- * @param hash Pointer to the 32-byte SHA-256 digest.
- * @param dest Pointer to a buffer where the resulting hex string will be stored.
+ * @param data  Input buffer.
+ * @param len   Length of input.
+ * @param alg   Algorithm ID.
+ * @return Pointer to static hex string.
  */
-void fossil_cryptic_hash_sha256_to_hex(const uint8_t hash[32], char dest[65]);
+char *fossil_cryptic_hash_hex_auto(const void *data, size_t len, const char *alg);
 
-
-/* ---------------------
- * One-shot hashing APIs
- * -------------------*/
+/* ------------------------------------------------------------------------
+ * Extended Output Encodings
+ * ------------------------------------------------------------------------ */
 
 /**
- * @brief Compute a CRC32 checksum (IEEE 802.3 standard) for the given buffer.
+ * @brief Encode a binary buffer to base62.
  *
- * @param data Pointer to the input data buffer.
- * @param len  Length of the input data in bytes.
- * @return 32-bit CRC32 checksum.
+ * @param in      Input buffer.
+ * @param inlen   Input length.
+ * @param out     Output buffer.
+ * @param outlen  Output buffer size.
+ * @return 0 on success, nonzero on error.
  */
-uint32_t fossil_cryptic_hash_crc32(const void *data, size_t len);
+int fossil_cryptic_base62_encode(const void *in, size_t inlen, char *out, size_t outlen);
 
 /**
- * @brief Compute an FNV-1a 32-bit hash for the given buffer.
+ * @brief Encode a binary buffer to base36.
  *
- * @param data Pointer to the input data buffer.
- * @param len  Length of the input data in bytes.
- * @return 32-bit FNV-1a hash.
+ * @param in      Input buffer.
+ * @param inlen   Input length.
+ * @param out     Output buffer.
+ * @param outlen  Output buffer size.
+ * @return 0 on success, nonzero on error.
  */
-uint32_t fossil_cryptic_hash_fnv1a32(const void *data, size_t len);
+int fossil_cryptic_base36_encode(const void *in, size_t inlen, char *out, size_t outlen);
+
+/* ------------------------------------------------------------------------
+ * Options-based API
+ * ------------------------------------------------------------------------ */
 
 /**
- * @brief Compute an FNV-1a 64-bit hash for the given buffer.
+ * @brief Options struct for hashing.
  *
- * @param data Pointer to the input data buffer.
- * @param len  Length of the input data in bytes.
- * @return 64-bit FNV-1a hash.
+ * All fields are optional; set to NULL/0 for defaults.
+ * Keys are string IDs ("alg", "bit", "base", ...).
  */
-uint64_t fossil_cryptic_hash_fnv1a64(const void *data, size_t len);
+typedef struct fossil_cryptic_hash_opts {
+    const char *alg;      /**< Algorithm string ID ("sha256", etc) */
+    const char *bit;      /**< Bit width or hash type ("u32", "sha512", "auto") */
+    const char *base;     /**< Output encoding ("hex", "base62", "base36", "base64", "auto") */
+    size_t     outlen;    /**< Output buffer size (0 = default) */
+    /* Future: add more options as needed */
+} fossil_cryptic_hash_opts;
 
 /**
- * @brief Compute a MurmurHash3 x86_32 hash for the given buffer.
+ * @brief Compute a hash and encode to string using options struct.
  *
- * Uses the public-domain reference implementation. This algorithm is
- * non-cryptographic but provides good distribution for general-purpose use.
- *
- * @param data Pointer to the input data buffer.
- * @param len  Length of the input data in bytes.
- * @param seed Seed value to influence the hash result.
- * @return 32-bit MurmurHash3 value.
+ * @param data   Input buffer.
+ * @param len    Input length.
+ * @param opts   Pointer to options struct (may be NULL for defaults).
+ * @param out    Output buffer.
+ * @param outlen Output buffer size.
+ * @return 0 on success, nonzero on error.
  */
-uint32_t fossil_cryptic_hash_murmur3_32(const void *data, size_t len, uint32_t seed);
+int fossil_cryptic_hash_with_opts(const void *data, size_t len,
+                                  const fossil_cryptic_hash_opts *opts,
+                                  char *out, size_t outlen);
 
-
-/* ---------------------
- * Streaming API (init/update/final)
- * Supports CRC32, FNV-1a (32/64), and SHA-256
- * -------------------*/
+/* ------------------------------------------------------------------------
+ * SHA-1 / SHA-256 / SHA-512 APIs (pure C, available internally)
+ * ------------------------------------------------------------------------ */
 
 /**
- * @brief Initialize a generic hashing context for the specified algorithm.
+ * @brief Compute SHA-1 hash (20 bytes).
  *
- * @param ctx Pointer to a generic hash context.
- * @param alg Algorithm identifier (from fossil_cryptic_hash_alg_t).
+ * @param data   Input buffer.
+ * @param len    Input length.
+ * @param out    Output buffer (must be at least 20 bytes).
  */
-void fossil_cryptic_hash_init(fossil_cryptic_hash_ctx_t *ctx, fossil_cryptic_hash_alg_t alg);
+void fossil_cryptic_sha1(const void *data, size_t len, uint8_t out[20]);
 
 /**
- * @brief Feed data into a generic streaming hash context.
+ * @brief Compute SHA-256 hash (32 bytes).
  *
- * This function may be called multiple times. The algorithm is determined
- * by the context initialization.
- *
- * @param ctx  Pointer to the generic hash context.
- * @param data Pointer to the input data to hash.
- * @param len  Length of the input data in bytes.
+ * @param data   Input buffer.
+ * @param len    Input length.
+ * @param out    Output buffer (must be at least 32 bytes).
  */
-void fossil_cryptic_hash_update(fossil_cryptic_hash_ctx_t *ctx, const void *data, size_t len);
+void fossil_cryptic_sha256(const void *data, size_t len, uint8_t out[32]);
 
 /**
- * @brief Finalize and obtain a 32-bit hash result.
+ * @brief Compute SHA-512 hash (64 bytes).
  *
- * Valid for algorithms that produce 32-bit results (CRC32, FNV1A32, Murmur3).
- *
- * @param ctx Pointer to the generic hash context.
- * @return 32-bit hash result.
+ * @param data   Input buffer.
+ * @param len    Input length.
+ * @param out    Output buffer (must be at least 64 bytes).
  */
-uint32_t fossil_cryptic_hash_final32(fossil_cryptic_hash_ctx_t *ctx);
-
-/**
- * @brief Finalize and obtain a 64-bit hash result.
- *
- * Only valid if ctx->alg == FOSSIL_CRYPTIC_HASH_ALG_FNV1A64.
- *
- * @param ctx Pointer to the generic hash context.
- * @return 64-bit hash result.
- */
-uint64_t fossil_cryptic_hash_final64(fossil_cryptic_hash_ctx_t *ctx);
-
-/**
- * @brief Finalize a streaming SHA-256 computation from a generic context.
- *
- * This is the SHA-256 variant of the generic streaming API. It extracts
- * the final 256-bit digest into the output buffer.
- *
- * @param ctx Pointer to the generic hash context.
- * @param out Pointer to a 32-byte buffer for the resulting digest.
- */
-void fossil_cryptic_hash_final_sha256(fossil_cryptic_hash_ctx_t *ctx, uint8_t out[32]);
-
-/**
- * @brief Convert a 32-bit hash value to a lowercase hexadecimal string.
- *
- * The output buffer must be at least 9 bytes (8 hex digits + null terminator).
- *
- * @param h    32-bit hash value.
- * @param dest Pointer to the destination buffer.
- */
-void fossil_cryptic_hash_u32_to_hex(uint32_t h, char dest[9]);
-
-/**
- * @brief Convert a 64-bit hash value to a lowercase hexadecimal string.
- *
- * The output buffer must be at least 17 bytes (16 hex digits + null terminator).
- *
- * @param h    64-bit hash value.
- * @param dest Pointer to the destination buffer.
- */
-void fossil_cryptic_hash_u64_to_hex(uint64_t h, char dest[17]);
+void fossil_cryptic_sha512(const void *data, size_t len, uint8_t out[64]);
 
 #ifdef __cplusplus
 }
@@ -264,158 +225,204 @@ namespace fossil {
          *
          * This class provides both static one-shot hashing methods and
          * an object-oriented streaming interface that wraps the C API.
+         * It allows users to compute hashes using various algorithms,
+         * encode the result in different formats, and access raw hash bytes.
          */
         class Hash {
         public:
-            /// Supported algorithms
+            /**
+             * @brief Supported algorithms (string-based, matching C API).
+             *
+             * Enumerates all hash algorithms supported by the underlying
+             * C API. These values map directly to the string IDs used
+             * in the C interface.
+             */
             enum class Algorithm : uint32_t {
-                CRC32       = FOSSIL_CRYPTIC_HASH_ALG_CRC32,
-                FNV1a32     = FOSSIL_CRYPTIC_HASH_ALG_FNV1A32,
-                FNV1a64     = FOSSIL_CRYPTIC_HASH_ALG_FNV1A64,
-                Murmur3_32  = FOSSIL_CRYPTIC_HASH_ALG_MURMUR3_32,
-                SHA256      = FOSSIL_CRYPTIC_HASH_ALG_SHA256
+                FNV1a32,      /**< FNV-1a 32-bit hash */
+                FNV1a64,      /**< FNV-1a 64-bit hash */
+                CRC32,        /**< CRC32 (IEEE 802.3 polynomial) */
+                Murmur3_32,   /**< MurmurHash3 x86 32-bit */
+                Jenkins,      /**< Jenkins one-at-a-time (32-bit) */
+                SHA1,         /**< SHA-1 (160-bit) */
+                SHA256,       /**< SHA-256 (256-bit) */
+                SHA512        /**< SHA-512 (512-bit) */
             };
-        
-            /// Size of SHA-256 digest in bytes
-            static constexpr size_t SHA256_SIZE = 32;
-        
-            /// Default constructor (no algorithm set)
+
+            /**
+             * @brief Default constructor (no algorithm set).
+             *
+             * Constructs a Hash object with the default algorithm (FNV1a32).
+             */
             Hash() = default;
-        
+
             /**
              * @brief Construct and initialize with a specific algorithm.
-             * @param alg Algorithm to use.
+             *
+             * @param alg Algorithm to use for hashing operations.
              */
-            explicit Hash(Algorithm alg) { init(alg); }
-        
+            explicit Hash(Algorithm alg) : alg_(alg) {}
+
             /**
-             * @brief Initialize the hash context for a given algorithm.
-             * @param alg Algorithm to use.
+             * @brief Compute a 32-bit hash for a buffer.
+             *
+             * Computes a 32-bit hash value for the given data buffer using
+             * the specified algorithm.
+             *
+             * @param data Pointer to input data.
+             * @param len  Number of bytes in input.
+             * @param alg  Algorithm to use.
+             * @return 32-bit hash value.
              */
-            void init(Algorithm alg) {
-                fossil_cryptic_hash_init(&ctx_, static_cast<fossil_cryptic_hash_alg_t>(alg));
-            }
-        
-            /**
-             * @brief Feed data into the hash computation.
-             * @param data Pointer to bytes.
-             * @param len Number of bytes.
-             */
-            void update(const void* data, size_t len) {
-                fossil_cryptic_hash_update(&ctx_, data, len);
-            }
-        
-            /**
-             * @brief Finalize and return a 32-bit result.
-             * @return 32-bit hash.
-             */
-            uint32_t final32() {
-                return fossil_cryptic_hash_final32(&ctx_);
-            }
-        
-            /**
-             * @brief Finalize and return a 64-bit result.
-             * @return 64-bit hash.
-             */
-            uint64_t final64() {
-                return fossil_cryptic_hash_final64(&ctx_);
-            }
-        
-            /**
-             * @brief Finalize SHA-256 and return the digest as a byte array.
-             * @return std::array<uint8_t, 32> containing the digest.
-             */
-            std::array<uint8_t, SHA256_SIZE> finalSHA256() {
-                std::array<uint8_t, SHA256_SIZE> out{};
-                fossil_cryptic_hash_final_sha256(&ctx_, out.data());
-                return out;
-            }
-        
-            /**
-             * @brief Convert a 32-bit hash value to a lowercase hex string.
-             */
-            static std::string to_hex(uint32_t h) {
-                char buf[9];
-                fossil_cryptic_hash_u32_to_hex(h, buf);
-                return std::string(buf);
-            }
-        
-            /**
-             * @brief Convert a 64-bit hash value to a lowercase hex string.
-             */
-            static std::string to_hex(uint64_t h) {
-                char buf[17];
-                fossil_cryptic_hash_u64_to_hex(h, buf);
-                return std::string(buf);
-            }
-        
-            /**
-             * @brief Convert a SHA-256 digest to lowercase hex.
-             */
-            static std::string to_hex(const std::array<uint8_t, SHA256_SIZE>& digest) {
-                char buf[65];
-                fossil_cryptic_hash_sha256_to_hex(digest.data(), buf);
-                return std::string(buf);
+            static uint32_t hash_32(const void* data, size_t len, Algorithm alg) {
+                return fossil_cryptic_hash_u32(data, len, to_alg_str(alg));
             }
 
-            //
             /**
-             * @brief Convert a SHA-256 digest (vector) to lowercase hex.
+             * @brief Compute a 64-bit hash for a buffer.
+             *
+             * Computes a 64-bit hash value for the given data buffer using
+             * the specified algorithm.
+             *
+             * @param data Pointer to input data.
+             * @param len  Number of bytes in input.
+             * @param alg  Algorithm to use.
+             * @return 64-bit hash value.
              */
-            static std::string to_hex(const std::vector<uint8_t>& digest) {
-                char buf[65];
-                if (digest.size() != SHA256_SIZE) return {};
-                fossil_cryptic_hash_sha256_to_hex(digest.data(), buf);
-                return std::string(buf);
+            static uint64_t hash_64(const void* data, size_t len, Algorithm alg) {
+                return fossil_cryptic_hash_u64(data, len, to_alg_str(alg));
             }
-        
+
             /**
-             * @brief One-shot SHA-256.
+             * @brief Compute a hash and encode to string.
+             *
+             * Computes a hash for the given data buffer using the specified
+             * algorithm, bit width, and output encoding, and returns the
+             * result as a string.
+             *
+             * @param data      Input data buffer.
+             * @param len       Length of data in bytes.
+             * @param alg       Algorithm to use.
+             * @param bit_pref  Bit width or hash type ("u32", "sha256", etc).
+             * @param base_pref Output encoding ("hex", "base62", etc).
+             * @return Encoded hash string, or empty string on error.
              */
-            static std::array<uint8_t, SHA256_SIZE> sha256(const void* data, size_t len) {
-                std::array<uint8_t, SHA256_SIZE> out{};
-                fossil_cryptic_hash_sha256(data, len, out.data());
+            static std::string hash_to_string(const void* data, size_t len, Algorithm alg,
+                              const char* bit_pref = "auto",
+                              const char* base_pref = "auto") {
+                char out[256];
+                if (fossil_cryptic_hash_to_str(data, len, to_alg_str(alg), bit_pref, base_pref, out, sizeof(out)) == 0)
+                    return std::string(out);
+                return {};
+            }
+
+            /**
+             * @brief Get a static hex string for a hash.
+             *
+             * Computes a hash for the given data buffer using the specified
+             * algorithm and returns a static hex-encoded string.
+             * Not thread-safe.
+             *
+             * @param data Input buffer.
+             * @param len  Length of input.
+             * @param alg  Algorithm to use.
+             * @return Hex-encoded hash string, or empty string on error.
+             */
+            static std::string hash_hex_auto(const void* data, size_t len, Algorithm alg) {
+                char* hex = fossil_cryptic_hash_hex_auto(data, len, to_alg_str(alg));
+                return hex ? std::string(hex) : std::string();
+            }
+
+            /**
+             * @brief Get a list of available algorithms.
+             *
+             * Returns a newline-separated string listing all supported
+             * algorithm IDs. The string is statically allocated.
+             *
+             * @return String listing available algorithms.
+             */
+            static std::string available_algorithms() {
+                const char* list = fossil_cryptic_hash_list();
+                return list ? std::string(list) : std::string();
+            }
+
+            /**
+             * @brief Compute SHA-1 hash (20 bytes).
+             *
+             * Computes the SHA-1 hash of the input data and returns the
+             * result as a std::array of 20 bytes.
+             *
+             * @param data Input buffer.
+             * @param len  Length of input.
+             * @return SHA-1 hash as a 20-byte array.
+             */
+            static std::array<uint8_t, 20> sha1(const void* data, size_t len) {
+                std::array<uint8_t, 20> out{};
+                fossil_cryptic_sha1(data, len, out.data());
                 return out;
             }
-        
+
             /**
-             * @brief One-shot SHA-256, hex output.
+             * @brief Compute SHA-256 hash (32 bytes).
+             *
+             * Computes the SHA-256 hash of the input data and returns the
+             * result as a std::array of 32 bytes.
+             *
+             * @param data Input buffer.
+             * @param len  Length of input.
+             * @return SHA-256 hash as a 32-byte array.
              */
-            static std::string sha256Hex(const void* data, size_t len) {
-                auto digest = sha256(data, len);
-                return to_hex(digest);
+            static std::array<uint8_t, 32> sha256(const void* data, size_t len) {
+                std::array<uint8_t, 32> out{};
+                fossil_cryptic_sha256(data, len, out.data());
+                return out;
             }
-        
+
             /**
-             * @brief One-shot CRC32.
+             * @brief Compute SHA-512 hash (64 bytes).
+             *
+             * Computes the SHA-512 hash of the input data and returns the
+             * result as a std::array of 64 bytes.
+             *
+             * @param data Input buffer.
+             * @param len  Length of input.
+             * @return SHA-512 hash as a 64-byte array.
              */
-            static uint32_t crc32(const void* data, size_t len) {
-                return fossil_cryptic_hash_crc32(data, len);
+            static std::array<uint8_t, 64> sha512(const void* data, size_t len) {
+                std::array<uint8_t, 64> out{};
+                fossil_cryptic_sha512(data, len, out.data());
+                return out;
             }
-        
-            /**
-             * @brief One-shot FNV-1a 32-bit.
-             */
-            static uint32_t fnv1a32(const void* data, size_t len) {
-                return fossil_cryptic_hash_fnv1a32(data, len);
-            }
-        
-            /**
-             * @brief One-shot FNV-1a 64-bit.
-             */
-            static uint64_t fnv1a64(const void* data, size_t len) {
-                return fossil_cryptic_hash_fnv1a64(data, len);
-            }
-        
-            /**
-             * @brief One-shot MurmurHash3 x86_32.
-             */
-            static uint32_t murmur3_32(const void* data, size_t len, uint32_t seed) {
-                return fossil_cryptic_hash_murmur3_32(data, len, seed);
-            }
-        
+
         private:
-            fossil_cryptic_hash_ctx_t ctx_{};
+            /**
+             * @brief Algorithm to use for hashing operations.
+             *
+             * Defaults to FNV1a32 if not specified.
+             */
+            Algorithm alg_{Algorithm::FNV1a32};
+
+            /**
+             * @brief Convert Algorithm enum to C API string ID.
+             *
+             * Maps the Algorithm enum value to the corresponding string
+             * identifier expected by the C API.
+             *
+             * @param alg Algorithm enum value.
+             * @return C string representing the algorithm ID.
+             */
+            static const char* to_alg_str(Algorithm alg) {
+                switch (alg) {
+                    case Algorithm::FNV1a32:    return "fnv1a";
+                    case Algorithm::FNV1a64:    return "fnv1a64";
+                    case Algorithm::CRC32:      return "crc32";
+                    case Algorithm::Murmur3_32: return "murmur3";
+                    case Algorithm::Jenkins:    return "jenkins";
+                    case Algorithm::SHA1:       return "sha1";
+                    case Algorithm::SHA256:     return "sha256";
+                    case Algorithm::SHA512:     return "sha512";
+                    default:                    return "fnv1a";
+                }
+            }
         };
 
     } // namespace cryptic
