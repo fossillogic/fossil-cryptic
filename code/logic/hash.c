@@ -604,7 +604,7 @@ static void sha512_hash(const void *data, size_t len, uint8_t out[64]) {
 /* ------------------------ high-level selection ------------------------ */
 
 /* list of supported algorithm ids (lowercase) */
-const char *fossil_cryptic_hash_list() {
+const char *fossil_cryptic_hash_list(void) {
     /* newline separated for easy printing; update when adding new algorithm */
     return "fnv1a\nfnv1a64\ncrc32\nmurmur3\njenkins\nsha1\nsha256\nsha512\n";
 }
