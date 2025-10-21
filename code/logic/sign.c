@@ -65,10 +65,9 @@ static int build_signed_data(const char* timestamp, const void* input, size_t in
     }
 
     if (timestamp[0] == '\0' || strcmp(timestamp, "none") == 0) {
-        /* no timestamp - just copy input (if input is needed to be modified by caller, we still pass pointer) */
+        /* no timestamp - just copy input */
         if (input_len == 0) {
-            /* empty input: produce empty buffer */
-            void* buf = malloc(0); /* ok to return NULL for 0? be explicit */
+            void* buf = malloc(0);
             *out_buf = buf;
             *out_len = 0;
             return 0;
@@ -134,29 +133,34 @@ int fossil_cryptic_sign(
             /* unexpected, but fallback to signature only */
             if (strlen(tmp_sig) + 1 > output_len) { free(signed_data); free(tmp_sig); return -6; }
             strncpy(output, tmp_sig, output_len);
+            output[output_len - 1] = '\0';
             free(signed_data); free(tmp_sig);
             return 0;
         }
         size_t tsl = (size_t)(colon - (char*)signed_data);
-        size_t need = tsl + 1 + strlen(tmp_sig) + 1; /* ts + ':' + sig + NUL */
+        size_t siglen = strlen(tmp_sig);
+        size_t need = tsl + 1 + siglen + 1; /* ts + ':' + sig + NUL */
         if (need > output_len) { free(signed_data); free(tmp_sig); return -7; }
         memcpy(output, signed_data, tsl);
         output[tsl] = ':';
-        strncpy(output + tsl + 1, tmp_sig, output_len - tsl - 1);
-        output[need-1] = '\0';
+        memcpy(output + tsl + 1, tmp_sig, siglen);
+        output[tsl + 1 + siglen] = '\0';
     } else if (timestamp[0] == '\0' || strcmp(timestamp, "none") == 0) {
         /* signature only */
-        if (strlen(tmp_sig) + 1 > output_len) { free(signed_data); free(tmp_sig); return -7; }
-        strncpy(output, tmp_sig, output_len);
+        size_t siglen = strlen(tmp_sig);
+        if (siglen + 1 > output_len) { free(signed_data); free(tmp_sig); return -7; }
+        memcpy(output, tmp_sig, siglen);
+        output[siglen] = '\0';
     } else {
         /* explicit timestamp string provided */
         size_t tsl = strlen(timestamp);
-        size_t need = tsl + 1 + strlen(tmp_sig) + 1;
+        size_t siglen = strlen(tmp_sig);
+        size_t need = tsl + 1 + siglen + 1;
         if (need > output_len) { free(signed_data); free(tmp_sig); return -7; }
         memcpy(output, timestamp, tsl);
         output[tsl] = ':';
-        strncpy(output + tsl + 1, tmp_sig, output_len - tsl - 1);
-        output[need-1] = '\0';
+        memcpy(output + tsl + 1, tmp_sig, siglen);
+        output[tsl + 1 + siglen] = '\0';
     }
 
     free(signed_data);
@@ -192,7 +196,7 @@ int fossil_cryptic_check(
     /* Build signed_data using extracted timestamp (ts_copy) or no timestamp */
     void* signed_data = NULL;
     size_t signed_len = 0;
-    int r = build_signed_data(ts_copy ? ts_copy : "", input, input_len, &signed_data, &signed_len);
+    int r = build_signed_data(ts_copy ? ts_copy : "none", input, input_len, &signed_data, &signed_len);
     if (r != 0) { free(ts_copy); return -3; }
 
     /* compute expected signature into temp buffer sized to length of provided sig_part plus some margin */

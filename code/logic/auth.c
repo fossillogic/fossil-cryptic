@@ -45,17 +45,24 @@ int fossil_cryptic_auth_compute(
     uint8_t k_ipad[HMAC_BLOCK_SIZE];
     uint8_t k_opad[HMAC_BLOCK_SIZE];
     uint8_t key_hash[64]; // max 64 bytes for u64 hash
-    char key_hash_str[32]; // temporary string for hash output
-    size_t hash_size = (strcmp(bits, "u64") == 0) ? 8 : 4;
+    char key_hash_str[64]; // enough for 32 bytes hex
+    size_t hash_size = 0;
+
+    if (strcmp(bits, "u64") == 0) hash_size = 8;
+    else if (strcmp(bits, "u32") == 0) hash_size = 4;
+    else return -1;
 
     // Step 1: If key > block size, hash it first
     if (key_len > HMAC_BLOCK_SIZE) {
-        if (fossil_cryptic_hash_compute(algorithm, bits, "auto", key_hash_str, sizeof(key_hash_str), key, key_len) != 0)
+        if (fossil_cryptic_hash_compute(algorithm, bits, "hex", key_hash_str, sizeof(key_hash_str), key, key_len) != 0)
             return -2;
 
         // Convert hex string to bytes
         for (size_t i = 0; i < hash_size; i++) {
-            sscanf(key_hash_str + i * 2, "%2hhx", &key_hash[i]);
+            unsigned int byte = 0;
+            if (sscanf(key_hash_str + i * 2, "%2x", &byte) != 1)
+                return -2;
+            key_hash[i] = (uint8_t)byte;
         }
         key_len = hash_size;
     } else {
@@ -71,13 +78,13 @@ int fossil_cryptic_auth_compute(
     }
 
     // Step 3: Compute inner hash: hash(inner_pad || input)
-    uint8_t* inner_buffer = malloc(HMAC_BLOCK_SIZE + input_len);
+    uint8_t* inner_buffer = (uint8_t*)malloc(HMAC_BLOCK_SIZE + input_len);
     if (!inner_buffer) return -5;
     memcpy(inner_buffer, k_ipad, HMAC_BLOCK_SIZE);
     memcpy(inner_buffer + HMAC_BLOCK_SIZE, input, input_len);
 
     char inner_hash_str[64];
-    if (fossil_cryptic_hash_compute(algorithm, bits, "auto", inner_hash_str, sizeof(inner_hash_str),
+    if (fossil_cryptic_hash_compute(algorithm, bits, "hex", inner_hash_str, sizeof(inner_hash_str),
                              inner_buffer, HMAC_BLOCK_SIZE + input_len) != 0) {
         free(inner_buffer);
         return -3;
@@ -87,18 +94,27 @@ int fossil_cryptic_auth_compute(
     // Convert inner hash string to bytes
     uint8_t inner_hash_bytes[64];
     for (size_t i = 0; i < hash_size; i++) {
-        sscanf(inner_hash_str + i * 2, "%2hhx", &inner_hash_bytes[i]);
+        unsigned int byte = 0;
+        if (sscanf(inner_hash_str + i * 2, "%2x", &byte) != 1)
+            return -3;
+        inner_hash_bytes[i] = (uint8_t)byte;
     }
 
     // Step 4: Compute outer hash: hash(outer_pad || inner_hash)
-    uint8_t outer_buffer[HMAC_BLOCK_SIZE + hash_size];
+    uint8_t outer_buffer[HMAC_BLOCK_SIZE + 64];
     memcpy(outer_buffer, k_opad, HMAC_BLOCK_SIZE);
     memcpy(outer_buffer + HMAC_BLOCK_SIZE, inner_hash_bytes, hash_size);
 
     // Final HMAC
-    if (fossil_cryptic_hash_compute(algorithm, bits, base, output, output_len,
-                             outer_buffer, HMAC_BLOCK_SIZE + hash_size) != 0)
-        return -4;
+    int rc = fossil_cryptic_hash_compute(
+        algorithm, bits, base, output, output_len,
+        outer_buffer, HMAC_BLOCK_SIZE + hash_size
+    );
+    if (rc != 0) return -4;
+
+    // Ensure output is null-terminated if base is "hex" or "base64"
+    if (output_len > 0)
+        output[output_len - 1] = '\0';
 
     return 0;
 }
