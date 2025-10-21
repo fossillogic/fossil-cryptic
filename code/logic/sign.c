@@ -112,7 +112,7 @@ int fossil_cryptic_sign(
 
     /* compute auth (this function prefixes the key internally according to your auth impl) */
     /* we will write signature into a temp buffer */
-    size_t tmp_sig_len = output_len;
+    size_t tmp_sig_len = 512; /* large enough for most signatures */
     char* tmp_sig = (char*)malloc(tmp_sig_len);
     if (!tmp_sig) { free(signed_data); return -4; }
 
@@ -199,9 +199,8 @@ int fossil_cryptic_check(
     int r = build_signed_data(ts_copy ? ts_copy : "none", input, input_len, &signed_data, &signed_len);
     if (r != 0) { free(ts_copy); return -3; }
 
-    /* compute expected signature into temp buffer sized to length of provided sig_part plus some margin */
-    size_t sig_len = strlen(sig_part);
-    size_t tmp_len = sig_len + 64; /* margin */
+    /* compute expected signature into temp buffer sized to be large enough for most signatures */
+    size_t tmp_len = 512;
     char* tmp_sig = (char*)malloc(tmp_len);
     if (!tmp_sig) { free(signed_data); free(ts_copy); return -4; }
 
