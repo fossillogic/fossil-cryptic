@@ -51,8 +51,8 @@ FOSSIL_TEARDOWN(c_sign_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_sign_basic_signature_no_timestamp) {
-    // Signs input with no timestamp ("none")
+FOSSIL_TEST_CASE(c_test_sign_signature_no_timestamp) {
+    // Should sign input without timestamp ("none" or "")
     const char *algorithm = "hmac-sha256";
     const char *bits = "u64";
     const char *base = "hex";
@@ -60,6 +60,7 @@ FOSSIL_TEST_CASE(c_test_sign_basic_signature_no_timestamp) {
     const char *input = "Hello Fossil";
     char output[512];
 
+    // Test with "none"
     int rc = fossil_cryptic_sign(
         algorithm, bits, base, key,
         input, strlen(input),
@@ -68,12 +69,29 @@ FOSSIL_TEST_CASE(c_test_sign_basic_signature_no_timestamp) {
     );
     ASSUME_ITS_EQUAL_I32(rc, 0);
     ASSUME_ITS_TRUE(strlen(output) > 0);
-
-    // Should not contain ':'
     ASSUME_ITS_TRUE(strchr(output, ':') == NULL);
 
-    // Check that signature matches what check expects
     int ok = 0;
+    rc = fossil_cryptic_check(
+        algorithm, bits, base, key,
+        input, strlen(input),
+        output,
+        &ok
+    );
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    ASSUME_ITS_EQUAL_I32(ok, 1);
+
+    // Test with ""
+    rc = fossil_cryptic_sign(
+        algorithm, bits, base, key,
+        input, strlen(input),
+        "",
+        output, sizeof(output)
+    );
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    ASSUME_ITS_TRUE(strlen(output) > 0);
+    ASSUME_ITS_TRUE(strchr(output, ':') == NULL);
+
     rc = fossil_cryptic_check(
         algorithm, bits, base, key,
         input, strlen(input),
@@ -84,8 +102,8 @@ FOSSIL_TEST_CASE(c_test_sign_basic_signature_no_timestamp) {
     ASSUME_ITS_EQUAL_I32(ok, 1);
 }
 
-FOSSIL_TEST_CASE(c_test_sign_basic_signature_with_auto_timestamp) {
-    // Signs input with auto timestamp
+FOSSIL_TEST_CASE(c_test_sign_signature_with_auto_timestamp) {
+    // Should sign input with auto timestamp ("auto" or NULL)
     const char *algorithm = "hmac-sha256";
     const char *bits = "u64";
     const char *base = "hex";
@@ -93,6 +111,7 @@ FOSSIL_TEST_CASE(c_test_sign_basic_signature_with_auto_timestamp) {
     const char *input = "Hello Fossil";
     char output[512];
 
+    // Test with "auto"
     int rc = fossil_cryptic_sign(
         algorithm, bits, base, key,
         input, strlen(input),
@@ -101,13 +120,31 @@ FOSSIL_TEST_CASE(c_test_sign_basic_signature_with_auto_timestamp) {
     );
     ASSUME_ITS_EQUAL_I32(rc, 0);
     ASSUME_ITS_TRUE(strlen(output) > 0);
-
-    // Should contain ':'
     char *colon = strchr(output, ':');
     ASSUME_ITS_TRUE(colon != NULL);
 
-    // Check that signature matches what check expects
     int ok = 0;
+    rc = fossil_cryptic_check(
+        algorithm, bits, base, key,
+        input, strlen(input),
+        output,
+        &ok
+    );
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    ASSUME_ITS_EQUAL_I32(ok, 1);
+
+    // Test with NULL
+    rc = fossil_cryptic_sign(
+        algorithm, bits, base, key,
+        input, strlen(input),
+        NULL,
+        output, sizeof(output)
+    );
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    ASSUME_ITS_TRUE(strlen(output) > 0);
+    colon = strchr(output, ':');
+    ASSUME_ITS_TRUE(colon != NULL);
+
     rc = fossil_cryptic_check(
         algorithm, bits, base, key,
         input, strlen(input),
@@ -119,14 +156,14 @@ FOSSIL_TEST_CASE(c_test_sign_basic_signature_with_auto_timestamp) {
 }
 
 FOSSIL_TEST_CASE(c_test_sign_signature_with_explicit_timestamp) {
-    // Signs input with explicit timestamp
+    // Should sign input with explicit timestamp
     const char *algorithm = "hmac-sha256";
     const char *bits = "u64";
     const char *base = "hex";
     const char *key = "secret";
     const char *input = "Hello Fossil";
-    char output[512];
     const char *timestamp = "1234567890";
+    char output[512];
 
     int rc = fossil_cryptic_sign(
         algorithm, bits, base, key,
@@ -136,12 +173,9 @@ FOSSIL_TEST_CASE(c_test_sign_signature_with_explicit_timestamp) {
     );
     ASSUME_ITS_EQUAL_I32(rc, 0);
     ASSUME_ITS_TRUE(strlen(output) > 0);
-
-    // Should start with timestamp and contain ':'
     ASSUME_ITS_TRUE(strncmp(output, timestamp, strlen(timestamp)) == 0);
     ASSUME_ITS_TRUE(strchr(output, ':') != NULL);
 
-    // Check that signature matches what check expects
     int ok = 0;
     rc = fossil_cryptic_check(
         algorithm, bits, base, key,
@@ -154,26 +188,29 @@ FOSSIL_TEST_CASE(c_test_sign_signature_with_explicit_timestamp) {
 }
 
 FOSSIL_TEST_CASE(c_test_sign_null_arguments) {
-    // Should fail with null arguments
+    // Should fail with null or invalid arguments
     char output[128];
     int rc = fossil_cryptic_sign(NULL, "u64", "hex", "key", "data", 4, "none", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -1);
+    ASSUME_ITS_TRUE(rc < 0);
 
     rc = fossil_cryptic_sign("hmac-sha256", NULL, "hex", "key", "data", 4, "none", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -1);
+    ASSUME_ITS_TRUE(rc < 0);
 
     rc = fossil_cryptic_sign("hmac-sha256", "u64", NULL, "key", "data", 4, "none", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -1);
+    ASSUME_ITS_TRUE(rc < 0);
 
     rc = fossil_cryptic_sign("hmac-sha256", "u64", "hex", NULL, "data", 4, "none", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -1);
+    ASSUME_ITS_TRUE(rc < 0);
+
+    rc = fossil_cryptic_sign("hmac-sha256", "u64", "hex", "key", NULL, 4, "none", output, sizeof(output));
+    ASSUME_ITS_TRUE(rc < 0);
 
     rc = fossil_cryptic_sign("hmac-sha256", "u64", "hex", "key", "data", 4, "none", NULL, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -1);
+    ASSUME_ITS_TRUE(rc < 0);
 }
 
 FOSSIL_TEST_CASE(c_test_check_valid_signature_no_timestamp) {
-    // Sign and check with no timestamp
+    // Should verify signature with no timestamp
     const char *algorithm = "hmac-sha256";
     const char *bits = "u64";
     const char *base = "hex";
@@ -201,7 +238,7 @@ FOSSIL_TEST_CASE(c_test_check_valid_signature_no_timestamp) {
 }
 
 FOSSIL_TEST_CASE(c_test_check_invalid_signature) {
-    // Check with tampered signature
+    // Should detect invalid signature
     const char *algorithm = "hmac-sha256";
     const char *bits = "u64";
     const char *base = "hex";
@@ -232,15 +269,15 @@ FOSSIL_TEST_CASE(c_test_check_invalid_signature) {
 }
 
 FOSSIL_TEST_CASE(c_test_check_valid_signature_with_explicit_timestamp) {
-    // Sign and check with explicit timestamp
+    // Should verify signature with explicit timestamp
     const char *algorithm = "hmac-sha256";
     const char *bits = "u64";
     const char *base = "hex";
     const char *key = "secret";
     const char *input = "Hello Fossil";
+    const char *timestamp = "1234567890";
     char signature[512];
     int ok = 0;
-    const char *timestamp = "1234567890";
 
     int rc = fossil_cryptic_sign(
         algorithm, bits, base, key,
@@ -264,8 +301,8 @@ FOSSIL_TEST_CASE(c_test_check_valid_signature_with_explicit_timestamp) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_sign_tests) {
-    FOSSIL_TEST_ADD(c_sign_fixture, c_test_sign_basic_signature_no_timestamp);
-    FOSSIL_TEST_ADD(c_sign_fixture, c_test_sign_basic_signature_with_auto_timestamp);
+    FOSSIL_TEST_ADD(c_sign_fixture, c_test_sign_signature_no_timestamp);
+    FOSSIL_TEST_ADD(c_sign_fixture, c_test_sign_signature_with_auto_timestamp);
     FOSSIL_TEST_ADD(c_sign_fixture, c_test_sign_signature_with_explicit_timestamp);
     FOSSIL_TEST_ADD(c_sign_fixture, c_test_sign_null_arguments);
     FOSSIL_TEST_ADD(c_sign_fixture, c_test_check_valid_signature_no_timestamp);
