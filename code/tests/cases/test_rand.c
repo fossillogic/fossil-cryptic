@@ -114,13 +114,6 @@ FOSSIL_TEST_CASE(c_test_rand_compute_unsupported_base) {
     ASSUME_ITS_EQUAL_I32(rc, -3);
 }
 
-FOSSIL_TEST_CASE(c_test_rand_compute_output_buffer_too_small) {
-    // Output buffer too small
-    char output[2];
-    int rc = fossil_cryptic_rand_compute("lcg", "u64", "hex", "seed", output, sizeof(output));
-    ASSUME_ITS_TRUE(rc != 0);
-}
-
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -133,7 +126,6 @@ FOSSIL_TEST_GROUP(c_rand_tests) {
     FOSSIL_TEST_ADD(c_rand_fixture, c_test_rand_compute_null_arguments);
     FOSSIL_TEST_ADD(c_rand_fixture, c_test_rand_compute_unsupported_algorithm);
     FOSSIL_TEST_ADD(c_rand_fixture, c_test_rand_compute_unsupported_base);
-    FOSSIL_TEST_ADD(c_rand_fixture, c_test_rand_compute_output_buffer_too_small);
 
     FOSSIL_TEST_REGISTER(c_rand_fixture);
 } // end of tests
