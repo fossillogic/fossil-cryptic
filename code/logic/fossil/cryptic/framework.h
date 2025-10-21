@@ -30,6 +30,5 @@
 #include "cipher.h"
 #include "keygen.h"
 #include "rand.h"
-#include "sign.h"
 
 #endif /* FOSSIL_CRYPTIC_FRAMEWORK_H */

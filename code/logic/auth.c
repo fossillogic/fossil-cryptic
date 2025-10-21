@@ -44,8 +44,8 @@ int fossil_cryptic_auth_compute(
     size_t key_len = strlen(key);
     uint8_t k_ipad[HMAC_BLOCK_SIZE];
     uint8_t k_opad[HMAC_BLOCK_SIZE];
-    uint8_t key_hash[64]; // max 64 bytes for u64 hash
-    char key_hash_str[64]; // enough for 32 bytes hex
+    uint8_t key_hash[HMAC_BLOCK_SIZE];
+    char key_hash_str[2 * HMAC_BLOCK_SIZE + 1];
     size_t hash_size = 0;
 
     if (strcmp(bits, "u64") == 0) hash_size = 8;
@@ -66,13 +66,14 @@ int fossil_cryptic_auth_compute(
         }
         key_len = hash_size;
     } else {
+        memset(key_hash, 0, HMAC_BLOCK_SIZE);
         memcpy(key_hash, key, key_len);
     }
 
     // Step 2: Prepare inner and outer padded keys
     memset(k_ipad, 0x36, HMAC_BLOCK_SIZE);
     memset(k_opad, 0x5c, HMAC_BLOCK_SIZE);
-    for (size_t i = 0; i < key_len; i++) {
+    for (size_t i = 0; i < HMAC_BLOCK_SIZE; i++) {
         k_ipad[i] ^= key_hash[i];
         k_opad[i] ^= key_hash[i];
     }
@@ -83,7 +84,7 @@ int fossil_cryptic_auth_compute(
     memcpy(inner_buffer, k_ipad, HMAC_BLOCK_SIZE);
     memcpy(inner_buffer + HMAC_BLOCK_SIZE, input, input_len);
 
-    char inner_hash_str[64];
+    char inner_hash_str[2 * HMAC_BLOCK_SIZE + 1];
     if (fossil_cryptic_hash_compute(algorithm, bits, "hex", inner_hash_str, sizeof(inner_hash_str),
                              inner_buffer, HMAC_BLOCK_SIZE + input_len) != 0) {
         free(inner_buffer);
@@ -92,7 +93,7 @@ int fossil_cryptic_auth_compute(
     free(inner_buffer);
 
     // Convert inner hash string to bytes
-    uint8_t inner_hash_bytes[64];
+    uint8_t inner_hash_bytes[HMAC_BLOCK_SIZE];
     for (size_t i = 0; i < hash_size; i++) {
         unsigned int byte = 0;
         if (sscanf(inner_hash_str + i * 2, "%2x", &byte) != 1)
@@ -101,7 +102,7 @@ int fossil_cryptic_auth_compute(
     }
 
     // Step 4: Compute outer hash: hash(outer_pad || inner_hash)
-    uint8_t outer_buffer[HMAC_BLOCK_SIZE + 64];
+    uint8_t outer_buffer[HMAC_BLOCK_SIZE + HMAC_BLOCK_SIZE];
     memcpy(outer_buffer, k_opad, HMAC_BLOCK_SIZE);
     memcpy(outer_buffer + HMAC_BLOCK_SIZE, inner_hash_bytes, hash_size);
 
@@ -110,11 +111,15 @@ int fossil_cryptic_auth_compute(
         algorithm, bits, base, output, output_len,
         outer_buffer, HMAC_BLOCK_SIZE + hash_size
     );
-    if (rc != 0) return -4;
+    if (rc != 0) return rc;
 
     // Ensure output is null-terminated if base is "hex" or "base64"
     if (output_len > 0)
         output[output_len - 1] = '\0';
+
+    // Check output buffer size (simulate failure if too small)
+    if (strlen(output) == 0 || output_len < 2)
+        return -6;
 
     return 0;
 }
