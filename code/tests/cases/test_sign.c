@@ -114,7 +114,7 @@ FOSSIL_TEST_CASE(c_test_sign_signature_with_explicit_timestamp) {
     ASSUME_ITS_EQUAL_I32(rc, 0);
     ASSUME_ITS_TRUE(strlen(output) > 0);
 
-    // Should start with timestamp
+    // Should start with timestamp and contain ':'
     ASSUME_ITS_TRUE(strncmp(output, timestamp, strlen(timestamp)) == 0);
     ASSUME_ITS_TRUE(strchr(output, ':') != NULL);
 }
