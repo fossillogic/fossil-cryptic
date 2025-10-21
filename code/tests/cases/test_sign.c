@@ -54,7 +54,7 @@ FOSSIL_TEARDOWN(c_sign_fixture) {
 FOSSIL_TEST_CASE(c_test_sign_basic_signature_no_timestamp) {
     // Signs input with no timestamp ("none")
     const char *algorithm = "hmac-sha256";
-    const char *bits = "256";
+    const char *bits = "u64";
     const char *base = "hex";
     const char *key = "secret";
     const char *input = "Hello Fossil";
@@ -122,19 +122,19 @@ FOSSIL_TEST_CASE(c_test_sign_signature_with_explicit_timestamp) {
 FOSSIL_TEST_CASE(c_test_sign_null_arguments) {
     // Should fail with null arguments
     char output[128];
-    int rc = fossil_cryptic_sign(NULL, "256", "hex", "key", "data", 4, "none", output, sizeof(output));
+    int rc = fossil_cryptic_sign(NULL, "u64", "hex", "key", "data", 4, "none", output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, -1);
 
     rc = fossil_cryptic_sign("hmac-sha256", NULL, "hex", "key", "data", 4, "none", output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, -1);
 
-    rc = fossil_cryptic_sign("hmac-sha256", "256", NULL, "key", "data", 4, "none", output, sizeof(output));
+    rc = fossil_cryptic_sign("hmac-sha256", "u64", NULL, "key", "data", 4, "none", output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, -1);
 
-    rc = fossil_cryptic_sign("hmac-sha256", "256", "hex", NULL, "data", 4, "none", output, sizeof(output));
+    rc = fossil_cryptic_sign("hmac-sha256", "u64", "hex", NULL, "data", 4, "none", output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, -1);
 
-    rc = fossil_cryptic_sign("hmac-sha256", "256", "hex", "key", "data", 4, "none", NULL, sizeof(output));
+    rc = fossil_cryptic_sign("hmac-sha256", "u64", "hex", "key", "data", 4, "none", NULL, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, -1);
 }
 

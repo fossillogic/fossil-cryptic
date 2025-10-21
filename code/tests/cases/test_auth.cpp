@@ -54,7 +54,7 @@ FOSSIL_TEARDOWN(cpp_auth_fixture) {
 FOSSIL_TEST_CASE(cpp_test_auth_compute_basic_hmac) {
     // Basic HMAC computation with a short key and input
     const char *algorithm = "hmac-sha256";
-    const char *bits = "u64";
+    const char *bits = "256";
     const char *base = "hex";
     const char *key = "key";
     const char *input = "The quick brown fox";
@@ -93,14 +93,14 @@ FOSSIL_TEST_CASE(cpp_test_auth_compute_null_arguments) {
 }
 
 FOSSIL_TEST_CASE(cpp_test_auth_compute_different_bit_lengths) {
-    // Test with u32 and u64 bit lengths
+    // Test with supported bit lengths for hmac-sha256
     const char *algorithm = "hmac-sha256";
     const char *key = "key";
     const char *input = "input";
     char output[128];
 
     int rc = fossil_cryptic_auth_compute(
-        algorithm, "u32", "hex",
+        algorithm, "256", "hex",
         key,
         input, strlen(input),
         output, sizeof(output)
@@ -109,7 +109,7 @@ FOSSIL_TEST_CASE(cpp_test_auth_compute_different_bit_lengths) {
     ASSUME_ITS_TRUE(strlen(output) > 0);
 
     rc = fossil_cryptic_auth_compute(
-        algorithm, "u64", "hex",
+        algorithm, "256", "hex",
         key,
         input, strlen(input),
         output, sizeof(output)

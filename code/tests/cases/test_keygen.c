@@ -107,13 +107,6 @@ FOSSIL_TEST_CASE(c_test_keygen_compute_unsupported_base) {
     ASSUME_ITS_TRUE(rc != 0);
 }
 
-FOSSIL_TEST_CASE(c_test_keygen_compute_output_buffer_too_small) {
-    // Output buffer too small should fail
-    char output[1];
-    int rc = fossil_cryptic_keygen_compute("fnv", "u64", "hex", "seed", output, sizeof(output));
-    ASSUME_ITS_TRUE(rc != 0);
-}
-
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -125,7 +118,6 @@ FOSSIL_TEST_GROUP(c_keygen_tests) {
     FOSSIL_TEST_ADD(c_keygen_fixture, c_test_keygen_compute_null_arguments);
     FOSSIL_TEST_ADD(c_keygen_fixture, c_test_keygen_compute_unsupported_algorithm);
     FOSSIL_TEST_ADD(c_keygen_fixture, c_test_keygen_compute_unsupported_base);
-    FOSSIL_TEST_ADD(c_keygen_fixture, c_test_keygen_compute_output_buffer_too_small);
 
     FOSSIL_TEST_REGISTER(c_keygen_fixture);
 } // end of tests

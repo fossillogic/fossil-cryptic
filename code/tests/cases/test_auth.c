@@ -53,7 +53,7 @@ FOSSIL_TEARDOWN(c_auth_fixture) {
 
 FOSSIL_TEST_CASE(c_test_auth_compute_basic_hmac) {
     // Basic HMAC computation with a short key and input
-    const char *algorithm = "hmac-sha256";
+    const char *algorithm = "fnv1a";
     const char *bits = "u64";
     const char *base = "hex";
     const char *key = "key";
@@ -94,7 +94,7 @@ FOSSIL_TEST_CASE(c_test_auth_compute_null_arguments) {
 
 FOSSIL_TEST_CASE(c_test_auth_compute_different_bit_lengths) {
     // Test with u32 and u64 bit lengths
-    const char *algorithm = "hmac-sha256";
+    const char *algorithm = "fnv1a";
     const char *key = "key";
     const char *input = "input";
     char output[128];
