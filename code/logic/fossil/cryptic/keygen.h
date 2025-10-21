@@ -104,6 +104,11 @@ namespace fossil {
             const std::string& base,
             const std::string& seed
             ) {
+            // Check for empty/null arguments
+            if (algorithm.empty() || bits.empty() || base.empty() || seed.empty()) {
+                throw std::invalid_argument("Arguments must not be empty");
+            }
+
             std::array<char, 128> buffer{};
             int result = fossil_cryptic_keygen_compute(
                 algorithm.c_str(),
@@ -116,7 +121,10 @@ namespace fossil {
             if (result != 0) {
                 throw std::runtime_error("Key generation failed");
             }
-            return std::string(buffer.data());
+
+            // Find the first null terminator to avoid trailing garbage
+            size_t len = strnlen(buffer.data(), buffer.size());
+            return std::string(buffer.data(), len);
             }
         };
 

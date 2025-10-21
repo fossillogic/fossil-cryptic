@@ -104,6 +104,30 @@ namespace fossil {
             const std::string& base,
             const std::string& seed = ""
             ) {
+            // Validate input parameters
+            if (algorithm.empty() || bits.empty() || base.empty()) {
+                throw std::invalid_argument("Algorithm, bits, and base must not be empty");
+            }
+
+            // Supported values
+            static const std::vector<std::string> valid_algorithms = {"lcg", "xor", "mix", "auto"};
+            static const std::vector<std::string> valid_bits = {"u32", "u64", "auto"};
+            static const std::vector<std::string> valid_bases = {"hex", "base64", "auto"};
+
+            auto is_valid = [](const std::string& val, const std::vector<std::string>& allowed) {
+                return std::find(allowed.begin(), allowed.end(), val) != allowed.end();
+            };
+
+            if (!is_valid(algorithm, valid_algorithms)) {
+                throw std::invalid_argument("Unsupported algorithm: " + algorithm);
+            }
+            if (!is_valid(bits, valid_bits)) {
+                throw std::invalid_argument("Unsupported bits: " + bits);
+            }
+            if (!is_valid(base, valid_bases)) {
+                throw std::invalid_argument("Unsupported base: " + base);
+            }
+
             std::array<char, 128> buffer{};
             const char* seed_ptr = seed.empty() ? nullptr : seed.c_str();
             int result = fossil_cryptic_rand_compute(
@@ -117,7 +141,8 @@ namespace fossil {
             if (result != 0) {
                 throw std::runtime_error("Random value generation failed");
             }
-            return std::string(buffer.data());
+            // Defensive: ensure null-terminated and trim at first null
+            return std::string(buffer.data(), strnlen(buffer.data(), buffer.size()));
             }
         };
 

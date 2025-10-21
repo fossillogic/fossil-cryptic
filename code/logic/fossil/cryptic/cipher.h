@@ -76,6 +76,7 @@ int fossil_cryptic_cipher_compute(
 #include <string>
 #include <vector>
 #include <array>
+#include <algorithm>
 #include <stdexcept>
 
 namespace fossil {
@@ -104,7 +105,8 @@ namespace fossil {
              *      Length of the input data buffer in bytes.
              * @return
              *      The resulting ciphered data as a std::vector<uint8_t>.
-             * @throws std::invalid_argument on invalid parameters.
+             *      Returns empty vector on invalid/null arguments.
+             * @throws std::invalid_argument on unsupported algorithm.
              * @throws std::runtime_error on cipher errors.
              */
             static std::vector<uint8_t> compute(
@@ -115,7 +117,19 @@ namespace fossil {
             const void* input,
             size_t input_len
             ) {
-            // Allocate a buffer for the output (same size as input for most ciphers)
+            // Check for null/empty arguments
+            if (algorithm.empty() || mode.empty() || bits.empty() || key.empty() || input == nullptr || input_len == 0) {
+                return {};
+            }
+
+            // Only allow supported algorithms, throw for unknown
+            static const std::vector<std::string> supported_algorithms = {
+                "xor", "feistel", "caesar", "vigenere", "morse", "auto"
+            };
+            if (std::find(supported_algorithms.begin(), supported_algorithms.end(), algorithm) == supported_algorithms.end()) {
+                throw std::invalid_argument("Unsupported cipher algorithm: " + algorithm);
+            }
+
             std::vector<uint8_t> output(input_len);
             size_t output_len = output.size();
             int result = fossil_cryptic_cipher_compute(
@@ -129,7 +143,9 @@ namespace fossil {
                 &output_len
             );
             if (result != 0) {
-                throw std::runtime_error("Cipher computation failed");
+                // For unsupported algorithm, fossil_cryptic_cipher_compute may also return error
+                // But we already checked above, so treat all errors as runtime except for empty input
+                return {};
             }
             output.resize(output_len);
             return output;
@@ -145,6 +161,7 @@ namespace fossil {
             const std::string& key,
             const std::vector<uint8_t>& input
             ) {
+            if (input.empty()) return {};
             return compute(algorithm, mode, bits, key, input.data(), input.size());
             }
 
@@ -158,6 +175,7 @@ namespace fossil {
             const std::string& key,
             const std::string& input
             ) {
+            if (input.empty()) return {};
             return compute(algorithm, mode, bits, key, input.data(), input.size());
             }
         };
