@@ -27,6 +27,8 @@
 
 #include "hash.h"
 #include "auth.h"
-#include "enc.h"
+#include "cipher.h"
+#include "keygen.h"
+#include "rand.h"
 
 #endif /* FOSSIL_CRYPTIC_FRAMEWORK_H */

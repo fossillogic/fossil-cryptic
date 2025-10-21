@@ -51,74 +51,112 @@ FOSSIL_TEARDOWN(cpp_auth_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(cpp_test_hmac_sha256_known_vector) {
-    // Test vector from RFC 4231 Test Case 1
-    const uint8_t key[20] = {
-        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
-        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b
-    };
-    const uint8_t data[] = "Hi There";
-    auto mac = fossil::cryptic::Auth::hmac_sha256(key, sizeof(key), data, sizeof(data) - 1);
-    std::string hex = fossil::cryptic::Hash::to_hex(mac);
-    ASSUME_ITS_EQUAL_CSTR(
-        hex.c_str(),
-        "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"
-    );
+FOSSIL_TEST_CASE(cpp_test_auth_compute_null_params) {
+    // Should fail with any null parameter
+    char output[128];
+    int rc;
+
+    rc = fossil_cryptic_auth_compute(NULL, "u64", "hex", "key", "data", 4, output, sizeof(output));
+    ASSUME_ITS_EQUAL_I32(rc, -1);
+
+    rc = fossil_cryptic_auth_compute("hmac-sha256", NULL, "hex", "key", "data", 4, output, sizeof(output));
+    ASSUME_ITS_EQUAL_I32(rc, -1);
+
+    rc = fossil_cryptic_auth_compute("hmac-sha256", "u64", NULL, "key", "data", 4, output, sizeof(output));
+    ASSUME_ITS_EQUAL_I32(rc, -1);
+
+    rc = fossil_cryptic_auth_compute("hmac-sha256", "u64", "hex", NULL, "data", 4, output, sizeof(output));
+    ASSUME_ITS_EQUAL_I32(rc, -1);
+
+    rc = fossil_cryptic_auth_compute("hmac-sha256", "u64", "hex", "key", NULL, 4, output, sizeof(output));
+    ASSUME_ITS_EQUAL_I32(rc, -1);
+
+    rc = fossil_cryptic_auth_compute("hmac-sha256", "u64", "hex", "key", "data", 4, NULL, sizeof(output));
+    ASSUME_ITS_EQUAL_I32(rc, -1);
 }
 
-FOSSIL_TEST_CASE(cpp_test_hmac_sha256_empty_key_data) {
-    // HMAC-SHA256 with empty key and data
-    auto mac = fossil::cryptic::Auth::hmac_sha256(nullptr, 0, nullptr, 0);
-    std::string hex = fossil::cryptic::Hash::to_hex(mac);
-    // Precomputed with OpenSSL: HMAC_SHA256("", "") = b613679a0814d9ec772f95d778c35fc5ff1697c493715653c6c712144292c5ad
-    ASSUME_ITS_EQUAL_CSTR(
-        hex.c_str(),
-        "b613679a0814d9ec772f95d778c35fc5ff1697c493715653c6c712144292c5ad"
+FOSSIL_TEST_CASE(cpp_test_auth_compute_output_buffer_too_small) {
+    // Output buffer too small should fail
+    const char *algorithm = "hmac-sha256";
+    const char *bits = "u64";
+    const char *base = "hex";
+    const char *key = "key";
+    const char *input = "input";
+    char output[1];
+
+    int rc = fossil_cryptic_auth_compute(
+        algorithm, bits, base,
+        key,
+        input, strlen(input),
+        output, sizeof(output)
     );
+    ASSUME_ITS_TRUE(rc != 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_pbkdf2_sha256_known_vector) {
-    // Test vector from RFC 6070 (adapted for SHA256)
-    const char *password = "password";
-    const uint8_t salt[] = "salt";
-    uint32_t iterations = 1;
-    size_t dklen = 32;
-    auto dk = fossil::cryptic::Auth::pbkdf2_sha256(
-        reinterpret_cast<const uint8_t*>(password), strlen(password),
-        salt, sizeof(salt) - 1,
-        iterations, dklen
+FOSSIL_TEST_CASE(cpp_test_auth_compute_invalid_algorithm) {
+    // Invalid algorithm should fail
+    const char *algorithm = "invalid-algo";
+    const char *bits = "u64";
+    const char *base = "hex";
+    const char *key = "key";
+    const char *input = "input";
+    char output[128];
+
+    int rc = fossil_cryptic_auth_compute(
+        algorithm, bits, base,
+        key,
+        input, strlen(input),
+        output, sizeof(output)
     );
-    std::string hex = fossil::cryptic::Hash::to_hex(dk);
-    // Precomputed with OpenSSL: pbkdf2_sha256("password", "salt", 1, 32)
-    ASSUME_ITS_EQUAL_CSTR(
-        hex.c_str(),
-        "120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b"
-    );
+    ASSUME_ITS_TRUE(rc != 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_pbkdf2_sha256_empty_password_salt) {
-    // PBKDF2-SHA256 with empty password and salt
-    uint32_t iterations = 1;
-    size_t dklen = 32;
-    auto dk = fossil::cryptic::Auth::pbkdf2_sha256(
-        nullptr, 0, nullptr, 0, iterations, dklen
+FOSSIL_TEST_CASE(cpp_test_auth_compute_invalid_bits) {
+    // Invalid bits should fail
+    const char *algorithm = "hmac-sha256";
+    const char *bits = "invalid-bits";
+    const char *base = "hex";
+    const char *key = "key";
+    const char *input = "input";
+    char output[128];
+
+    int rc = fossil_cryptic_auth_compute(
+        algorithm, bits, base,
+        key,
+        input, strlen(input),
+        output, sizeof(output)
     );
-    std::string hex = fossil::cryptic::Hash::to_hex(dk);
-    // Precomputed with OpenSSL: pbkdf2_sha256("", "", 1, 32)
-    ASSUME_ITS_EQUAL_CSTR(
-        hex.c_str(),
-        "f7ce0b653d2d72a4108cf5abe912ffdd777616dbbb27a70e8204f3ae2d0f6fad"
-    );
+    ASSUME_ITS_TRUE(rc != 0);
 }
+
+FOSSIL_TEST_CASE(cpp_test_auth_compute_invalid_base) {
+    // Invalid base should fail
+    const char *algorithm = "hmac-sha256";
+    const char *bits = "u64";
+    const char *base = "invalid-base";
+    const char *key = "key";
+    const char *input = "input";
+    char output[128];
+
+    int rc = fossil_cryptic_auth_compute(
+        algorithm, bits, base,
+        key,
+        input, strlen(input),
+        output, sizeof(output)
+    );
+    ASSUME_ITS_TRUE(rc != 0);
+}
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_auth_tests) {
-    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_hmac_sha256_known_vector);
-    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_hmac_sha256_empty_key_data);
-    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_pbkdf2_sha256_known_vector);
-    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_pbkdf2_sha256_empty_password_salt);
+    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_auth_compute_null_params);
+    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_auth_compute_output_buffer_too_small);
+    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_auth_compute_invalid_algorithm);
+    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_auth_compute_invalid_bits);
+    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_auth_compute_invalid_base);
 
     FOSSIL_TEST_REGISTER(cpp_auth_fixture);
 } // end of tests

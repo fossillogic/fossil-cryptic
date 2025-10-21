@@ -9,9 +9,9 @@ else
 endif
 
 fossil_cryptic_lib = library('fossil_cryptic',
-    files('hash.c', 'auth.c', 'enc.c'),
+    files('hash.c', 'auth.c', 'cipher.c', 'keygen.c', 'rand.c'),
     install: true,
-    dependencies: [cc.find_library('m', required: false), winsock_dep],
+    dependencies: [cc.find_library('m', required: false), dependency('threads'), winsock_dep],
     include_directories: dir)
 
 fossil_cryptic_dep = declare_dependency(
