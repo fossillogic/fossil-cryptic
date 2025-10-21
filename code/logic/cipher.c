@@ -239,12 +239,13 @@ int fossil_cryptic_cipher_compute(
     else if (strcmp(mode, "encrypt") == 0) is_encrypt = 1;
     else if (strcmp(mode, "auto") != 0) return -2;
 
-    // Advanced key strength conversion
+    // Use advanced key conversion utilities
     uint32_t k32 = key_to_u32(key);
+    uint64_t k64 = key_to_u64(key);
 
     // Algorithm selection (advanced: fallback and auto)
     if (strcmp(algorithm, "xor") == 0 || strcmp(algorithm, "auto") == 0) {
-        cipher_xor((const uint8_t*)key, strlen(key),
+        cipher_xor((const uint8_t*)&k64, sizeof(k64),
                    (const uint8_t*)input, (uint8_t*)output, input_len);
         *output_len = input_len;
     }
@@ -257,19 +258,19 @@ int fossil_cryptic_cipher_compute(
     }
     else if (strcmp(algorithm, "caesar") == 0) {
         if (is_encrypt)
-            cipher_caesar((const uint8_t*)key, strlen(key),
+            cipher_caesar((const uint8_t*)&k32, sizeof(k32),
                           (const uint8_t*)input, (uint8_t*)output, input_len);
         else
-            cipher_caesar_decrypt((const uint8_t*)key, strlen(key),
+            cipher_caesar_decrypt((const uint8_t*)&k32, sizeof(k32),
                                   (const uint8_t*)input, (uint8_t*)output, input_len);
         *output_len = input_len;
     }
     else if (strcmp(algorithm, "vigenere") == 0) {
         if (is_encrypt)
-            cipher_vigenere((const uint8_t*)key, strlen(key),
+            cipher_vigenere((const uint8_t*)&k64, sizeof(k64),
                             (const uint8_t*)input, (uint8_t*)output, input_len);
         else
-            cipher_vigenere_decrypt((const uint8_t*)key, strlen(key),
+            cipher_vigenere_decrypt((const uint8_t*)&k64, sizeof(k64),
                                     (const uint8_t*)input, (uint8_t*)output, input_len);
         *output_len = input_len;
     }
@@ -284,7 +285,7 @@ int fossil_cryptic_cipher_compute(
     }
     else {
         // Advanced: fallback to XOR if unsupported algorithm
-        cipher_xor((const uint8_t*)key, strlen(key),
+        cipher_xor((const uint8_t*)&k64, sizeof(k64),
                    (const uint8_t*)input, (uint8_t*)output, input_len);
         *output_len = input_len;
     }
