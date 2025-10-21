@@ -71,6 +71,17 @@ FOSSIL_TEST_CASE(c_test_sign_basic_signature_no_timestamp) {
 
     // Should not contain ':'
     ASSUME_ITS_TRUE(strchr(output, ':') == NULL);
+
+    // Check that signature matches what check expects
+    int ok = 0;
+    rc = fossil_cryptic_check(
+        algorithm, bits, base, key,
+        input, strlen(input),
+        output,
+        &ok
+    );
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    ASSUME_ITS_EQUAL_I32(ok, 1);
 }
 
 FOSSIL_TEST_CASE(c_test_sign_basic_signature_with_auto_timestamp) {
@@ -92,7 +103,19 @@ FOSSIL_TEST_CASE(c_test_sign_basic_signature_with_auto_timestamp) {
     ASSUME_ITS_TRUE(strlen(output) > 0);
 
     // Should contain ':'
-    ASSUME_ITS_TRUE(strchr(output, ':') != NULL);
+    char *colon = strchr(output, ':');
+    ASSUME_ITS_TRUE(colon != NULL);
+
+    // Check that signature matches what check expects
+    int ok = 0;
+    rc = fossil_cryptic_check(
+        algorithm, bits, base, key,
+        input, strlen(input),
+        output,
+        &ok
+    );
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    ASSUME_ITS_EQUAL_I32(ok, 1);
 }
 
 FOSSIL_TEST_CASE(c_test_sign_signature_with_explicit_timestamp) {
@@ -117,6 +140,17 @@ FOSSIL_TEST_CASE(c_test_sign_signature_with_explicit_timestamp) {
     // Should start with timestamp and contain ':'
     ASSUME_ITS_TRUE(strncmp(output, timestamp, strlen(timestamp)) == 0);
     ASSUME_ITS_TRUE(strchr(output, ':') != NULL);
+
+    // Check that signature matches what check expects
+    int ok = 0;
+    rc = fossil_cryptic_check(
+        algorithm, bits, base, key,
+        input, strlen(input),
+        output,
+        &ok
+    );
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    ASSUME_ITS_EQUAL_I32(ok, 1);
 }
 
 FOSSIL_TEST_CASE(c_test_sign_null_arguments) {
