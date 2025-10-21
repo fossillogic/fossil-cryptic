@@ -58,7 +58,7 @@ FOSSIL_TEST_CASE(c_test_sign_basic_signature_no_timestamp) {
     const char *base = "hex";
     const char *key = "secret";
     const char *input = "Hello Fossil";
-    char output[128];
+    char output[256];
 
     int rc = fossil_cryptic_sign(
         algorithm, bits, base, key,
@@ -179,7 +179,7 @@ FOSSIL_TEST_CASE(c_test_check_valid_signature_no_timestamp) {
     const char *base = "hex";
     const char *key = "secret";
     const char *input = "Hello Fossil";
-    char signature[128];
+    char signature[256];
     int ok = 0;
 
     int rc = fossil_cryptic_sign(
