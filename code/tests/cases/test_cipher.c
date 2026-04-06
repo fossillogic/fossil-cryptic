@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(c_cipher_fixture);
+FOSSIL_SUITE(c_cipher_fixture);
 
 FOSSIL_SETUP(c_cipher_fixture) {
     // Setup the test fixture
@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(c_cipher_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_cipher_compute_basic_xor_encrypt_decrypt) {
+FOSSIL_TEST(c_test_cipher_compute_basic_xor_encrypt_decrypt) {
     // Basic XOR cipher encryption and decryption
     const char *algorithm = "xor";
     const char *mode_enc = "encrypt";
@@ -83,7 +83,7 @@ FOSSIL_TEST_CASE(c_test_cipher_compute_basic_xor_encrypt_decrypt) {
     ASSUME_ITS_TRUE(memcmp(plaintext, decrypted, input_len) == 0);
 }
 
-FOSSIL_TEST_CASE(c_test_cipher_compute_null_arguments) {
+FOSSIL_TEST(c_test_cipher_compute_null_arguments) {
     // Should fail with null arguments
     char out[32];
     size_t out_len = sizeof(out);
@@ -109,7 +109,7 @@ FOSSIL_TEST_CASE(c_test_cipher_compute_null_arguments) {
     ASSUME_ITS_TRUE(rc != 0);
 }
 
-FOSSIL_TEST_CASE(c_test_cipher_compute_unsupported_algorithm) {
+FOSSIL_TEST(c_test_cipher_compute_unsupported_algorithm) {
     // Should fail with unsupported algorithm
     char out[32];
     size_t out_len = sizeof(out);
@@ -118,7 +118,7 @@ FOSSIL_TEST_CASE(c_test_cipher_compute_unsupported_algorithm) {
     // Optionally, check that output length is zero or unchanged if needed
 }
 
-FOSSIL_TEST_CASE(c_test_cipher_compute_caesar_encrypt_decrypt) {
+FOSSIL_TEST(c_test_cipher_compute_caesar_encrypt_decrypt) {
     // Caesar cipher encryption and decryption
     const char *algorithm = "caesar";
     const char *mode_enc = "encrypt";
