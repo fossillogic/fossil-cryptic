@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(cpp_cipher_fixture);
+FOSSIL_SUITE(cpp_cipher_fixture);
 
 FOSSIL_SETUP(cpp_cipher_fixture) {
     // Setup the test fixture
@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(cpp_cipher_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(cpp_test_cipher_compute_basicpp_xor_encrypt_decrypt) {
+FOSSIL_TEST(cpp_test_cipher_compute_basicpp_xor_encrypt_decrypt) {
     // Basic XOR cipher encryption and decryption using fossil::cryptic::Cipher
     const std::string algorithm = "xor";
     const std::string mode_enc = "encrypt";
@@ -72,7 +72,7 @@ FOSSIL_TEST_CASE(cpp_test_cipher_compute_basicpp_xor_encrypt_decrypt) {
     ASSUME_ITS_TRUE(memcmp(plaintext.data(), decrypted.data(), plaintext.size()) == 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_cipher_compute_null_arguments) {
+FOSSIL_TEST(cpp_test_cipher_compute_null_arguments) {
     // Should fail with null arguments using fossil::cryptic::Cipher
     const std::string bits = "u8";
     const std::string key = "key";
@@ -94,7 +94,7 @@ FOSSIL_TEST_CASE(cpp_test_cipher_compute_null_arguments) {
     ASSUME_ITS_TRUE(out5.empty());
 }
 
-FOSSIL_TEST_CASE(cpp_test_cipher_compute_unsupported_algorithm) {
+FOSSIL_TEST(cpp_test_cipher_compute_unsupported_algorithm) {
     // Should fail with unsupported algorithm using fossil::cryptic::Cipher
     const std::string algorithm = "unknown";
     const std::string mode = "encrypt";
@@ -111,7 +111,7 @@ FOSSIL_TEST_CASE(cpp_test_cipher_compute_unsupported_algorithm) {
     ASSUME_ITS_TRUE(exception_thrown);
 }
 
-FOSSIL_TEST_CASE(cpp_test_cipher_compute_caesar_encrypt_decrypt) {
+FOSSIL_TEST(cpp_test_cipher_compute_caesar_encrypt_decrypt) {
     // Caesar cipher encryption and decryption using fossil::cryptic::Cipher
     const std::string algorithm = "caesar";
     const std::string mode_enc = "encrypt";
