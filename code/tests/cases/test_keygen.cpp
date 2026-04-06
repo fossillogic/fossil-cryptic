@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(cpp_keygen_fixture);
+FOSSIL_SUITE(cpp_keygen_fixture);
 
 FOSSIL_SETUP(cpp_keygen_fixture) {
     // Setup the test fixture
@@ -51,31 +51,31 @@ FOSSIL_TEARDOWN(cpp_keygen_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(cpp_test_keygen_compute_basicpp_fnv_hex_u32) {
+FOSSIL_TEST(cpp_test_keygen_compute_basicpp_fnv_hex_u32) {
     // Basic FNV keygen, hex, u32
     std::string key = fossil::cryptic::Keygen::compute("fnv", "u32", "hex", "hello");
     ASSUME_ITS_TRUE(key.length() == 8); // 8 hex digits for u32
 }
 
-FOSSIL_TEST_CASE(cpp_test_keygen_compute_basicpp_fnv_hex_u64) {
+FOSSIL_TEST(cpp_test_keygen_compute_basicpp_fnv_hex_u64) {
     // Basic FNV keygen, hex, u64
     std::string key = fossil::cryptic::Keygen::compute("fnv", "u64", "hex", "hello");
     ASSUME_ITS_TRUE(key.length() == 16); // 16 hex digits for u64
 }
 
-FOSSIL_TEST_CASE(cpp_test_keygen_compute_crcpp_base64_u32) {
+FOSSIL_TEST(cpp_test_keygen_compute_crcpp_base64_u32) {
     // CRC keygen, base64, u32
     std::string key = fossil::cryptic::Keygen::compute("crc", "u32", "base64", "seed");
     ASSUME_ITS_TRUE(key.length() > 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_keygen_compute_mix_auto_auto) {
+FOSSIL_TEST(cpp_test_keygen_compute_mix_auto_auto) {
     // Mix algorithm, auto bits, auto base
     std::string key = fossil::cryptic::Keygen::compute("mix", "auto", "auto", "longseedvalue");
     ASSUME_ITS_TRUE(key.length() > 0);
 }
 
-FOSSIL_TEST_CASE(cpp_test_keygen_compute_null_arguments) {
+FOSSIL_TEST(cpp_test_keygen_compute_null_arguments) {
     // Should throw with null arguments
     try {
         fossil::cryptic::Keygen::compute("", "u32", "hex", "seed");
@@ -103,7 +103,7 @@ FOSSIL_TEST_CASE(cpp_test_keygen_compute_null_arguments) {
     }
 }
 
-FOSSIL_TEST_CASE(cpp_test_keygen_compute_unsupported_algorithm) {
+FOSSIL_TEST(cpp_test_keygen_compute_unsupported_algorithm) {
     // Unsupported algorithm should throw
     try {
         fossil::cryptic::Keygen::compute("unknown", "u32", "hex", "seed");
@@ -113,7 +113,7 @@ FOSSIL_TEST_CASE(cpp_test_keygen_compute_unsupported_algorithm) {
     }
 }
 
-FOSSIL_TEST_CASE(cpp_test_keygen_compute_unsupported_base) {
+FOSSIL_TEST(cpp_test_keygen_compute_unsupported_base) {
     // Unsupported base should throw
     try {
         fossil::cryptic::Keygen::compute("fnv", "u32", "octal", "seed");
