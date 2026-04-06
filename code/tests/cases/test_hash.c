@@ -33,7 +33,7 @@
 // mock objects are set here.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_SUITE(c_hash_fixture);
+FOSSIL_SUITE(c_hash_fixture);
 
 FOSSIL_SETUP(c_hash_fixture) {
     // Setup the test fixture
@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(c_hash_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_crc32_oneshot) {
+FOSSIL_TEST(c_test_crc32_oneshot) {
     const char *msg = "abc";
     char hex[9];
     int rc = fossil_cryptic_hash_compute("crc32", "u32", "hex", hex, sizeof(hex), msg, 3);
@@ -59,7 +59,7 @@ FOSSIL_TEST_CASE(c_test_crc32_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "352441c2");
 }
 
-FOSSIL_TEST_CASE(c_test_fnv1a32_oneshot) {
+FOSSIL_TEST(c_test_fnv1a32_oneshot) {
     const char *msg = "abc";
     char hex[9];
     int rc = fossil_cryptic_hash_compute("fnv32", "u32", "hex", hex, sizeof(hex), msg, 3);
@@ -69,7 +69,7 @@ FOSSIL_TEST_CASE(c_test_fnv1a32_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "1a47e90b");
 }
 
-FOSSIL_TEST_CASE(c_test_fnv1a64_oneshot) {
+FOSSIL_TEST(c_test_fnv1a64_oneshot) {
     const char *msg = "abc";
     char hex[17];
     int rc = fossil_cryptic_hash_compute("fnv64", "u64", "hex", hex, sizeof(hex), msg, 3);
@@ -79,7 +79,7 @@ FOSSIL_TEST_CASE(c_test_fnv1a64_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "e71fa2190541574b");
 }
 
-FOSSIL_TEST_CASE(c_test_murmur3_oneshot) {
+FOSSIL_TEST(c_test_murmur3_oneshot) {
     const char *msg = "abc";
     char hex[9];
     int rc = fossil_cryptic_hash_compute("murmur3_32", "u32", "hex", hex, sizeof(hex), msg, 3);
@@ -87,7 +87,7 @@ FOSSIL_TEST_CASE(c_test_murmur3_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "b3dd93fa");
 }
 
-FOSSIL_TEST_CASE(c_test_crc64_oneshot) {
+FOSSIL_TEST(c_test_crc64_oneshot) {
     const char *msg = "abc";
     char hex[17];
     int rc = fossil_cryptic_hash_compute("crc64", "u64", "hex", hex, sizeof(hex), msg, 3);
@@ -96,7 +96,7 @@ FOSSIL_TEST_CASE(c_test_crc64_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "2cd8094a1a277627"); // Update if needed
 }
 
-FOSSIL_TEST_CASE(c_test_djb2_oneshot) {
+FOSSIL_TEST(c_test_djb2_oneshot) {
     const char *msg = "abc";
     char hex[9];
     int rc = fossil_cryptic_hash_compute("djb2", "u32", "hex", hex, sizeof(hex), msg, 3);
@@ -104,7 +104,7 @@ FOSSIL_TEST_CASE(c_test_djb2_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "0b885c8b");
 }
 
-FOSSIL_TEST_CASE(c_test_sdbm_oneshot) {
+FOSSIL_TEST(c_test_sdbm_oneshot) {
     const char *msg = "abc";
     char hex[9];
     int rc = fossil_cryptic_hash_compute("sdbm", "u32", "hex", hex, sizeof(hex), msg, 3);
@@ -112,7 +112,7 @@ FOSSIL_TEST_CASE(c_test_sdbm_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "3025f862");
 }
 
-FOSSIL_TEST_CASE(c_test_xor_oneshot) {
+FOSSIL_TEST(c_test_xor_oneshot) {
     const char *msg = "abc";
     char hex[9];
     int rc = fossil_cryptic_hash_compute("xor", "u32", "hex", hex, sizeof(hex), msg, 3);
@@ -120,7 +120,7 @@ FOSSIL_TEST_CASE(c_test_xor_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "00000060");
 }
 
-FOSSIL_TEST_CASE(c_test_cityhash32_oneshot) {
+FOSSIL_TEST(c_test_cityhash32_oneshot) {
     const char *msg = "abc";
     char hex[9];
     int rc = fossil_cryptic_hash_compute("cityhash32", "u32", "hex", hex, sizeof(hex), msg, 3);
@@ -128,7 +128,7 @@ FOSSIL_TEST_CASE(c_test_cityhash32_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "00019bf5");
 }
 
-FOSSIL_TEST_CASE(c_test_cityhash64_oneshot) {
+FOSSIL_TEST(c_test_cityhash64_oneshot) {
     const char *msg = "abc";
     char hex[17];
     int rc = fossil_cryptic_hash_compute("cityhash64", "u64", "hex", hex, sizeof(hex), msg, 3);
@@ -136,7 +136,7 @@ FOSSIL_TEST_CASE(c_test_cityhash64_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "00000000001939ae");
 }
 
-FOSSIL_TEST_CASE(c_test_xxhash32_oneshot) {
+FOSSIL_TEST(c_test_xxhash32_oneshot) {
     const char *msg = "abc";
     char hex[9];
     int rc = fossil_cryptic_hash_compute("xxhash32", "u32", "hex", hex, sizeof(hex), msg, 3);
@@ -144,7 +144,7 @@ FOSSIL_TEST_CASE(c_test_xxhash32_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "159d90c6");
 }
 
-FOSSIL_TEST_CASE(c_test_xxhash64_oneshot) {
+FOSSIL_TEST(c_test_xxhash64_oneshot) {
     const char *msg = "abc";
     char hex[17];
     int rc = fossil_cryptic_hash_compute("xxhash64", "u64", "hex", hex, sizeof(hex), msg, 3);
@@ -152,7 +152,7 @@ FOSSIL_TEST_CASE(c_test_xxhash64_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "530da1fae171f2df");
 }
 
-FOSSIL_TEST_CASE(c_test_murmur3_64_oneshot) {
+FOSSIL_TEST(c_test_murmur3_64_oneshot) {
     const char *msg = "abc";
     char hex[17];
     int rc = fossil_cryptic_hash_compute("murmur3_64", "u64", "hex", hex, sizeof(hex), msg, 3);
@@ -161,7 +161,7 @@ FOSSIL_TEST_CASE(c_test_murmur3_64_oneshot) {
     ASSUME_ITS_EQUAL_CSTR(hex, "b4963f3f3fad7867"); // Update if needed
 }
 
-FOSSIL_TEST_CASE(c_test_crc32_dec_base) {
+FOSSIL_TEST(c_test_crc32_dec_base) {
     const char *msg = "abc";
     char dec[12];
     int rc = fossil_cryptic_hash_compute("crc32", "u32", "dec", dec, sizeof(dec), msg, 3);
@@ -169,7 +169,7 @@ FOSSIL_TEST_CASE(c_test_crc32_dec_base) {
     ASSUME_ITS_EQUAL_CSTR(dec, "891568578");
 }
 
-FOSSIL_TEST_CASE(c_test_crc32_oct_base) {
+FOSSIL_TEST(c_test_crc32_oct_base) {
     const char *msg = "abc";
     char oct[12];
     int rc = fossil_cryptic_hash_compute("crc32", "u32", "oct", oct, sizeof(oct), msg, 3);
@@ -177,7 +177,7 @@ FOSSIL_TEST_CASE(c_test_crc32_oct_base) {
     ASSUME_ITS_EQUAL_CSTR(oct, "6511040702");
 }
 
-FOSSIL_TEST_CASE(c_test_crc32_bin_base) {
+FOSSIL_TEST(c_test_crc32_bin_base) {
     const char *msg = "abc";
     char bin[33];
     int rc = fossil_cryptic_hash_compute("crc32", "u32", "bin", bin, sizeof(bin), msg, 3);
@@ -185,28 +185,28 @@ FOSSIL_TEST_CASE(c_test_crc32_bin_base) {
     ASSUME_ITS_EQUAL_CSTR(bin, "00110101001001000100000111000010");
 }
 
-FOSSIL_TEST_CASE(c_test_invalid_algorithm) {
+FOSSIL_TEST(c_test_invalid_algorithm) {
     const char *msg = "abc";
     char hex[9];
     int rc = fossil_cryptic_hash_compute("notahash", "u32", "hex", hex, sizeof(hex), msg, 3);
     ASSUME_ITS_EQUAL_I32(rc, -3);
 }
 
-FOSSIL_TEST_CASE(c_test_invalid_bits) {
+FOSSIL_TEST(c_test_invalid_bits) {
     const char *msg = "abc";
     char hex[9];
     int rc = fossil_cryptic_hash_compute("crc32", "u128", "hex", hex, sizeof(hex), msg, 3);
     ASSUME_ITS_EQUAL_I32(rc, -2);
 }
 
-FOSSIL_TEST_CASE(c_test_invalid_base) {
+FOSSIL_TEST(c_test_invalid_base) {
     const char *msg = "abc";
     char buf[32];
     int rc = fossil_cryptic_hash_compute("crc32", "u32", "base99", buf, sizeof(buf), msg, 3);
     ASSUME_ITS_EQUAL_I32(rc, -4);
 }
 
-FOSSIL_TEST_CASE(c_test_null_args) {
+FOSSIL_TEST(c_test_null_args) {
     char hex[9];
     int rc = fossil_cryptic_hash_compute(NULL, "u32", "hex", hex, sizeof(hex), "abc", 3);
     ASSUME_ITS_EQUAL_I32(rc, -1);
