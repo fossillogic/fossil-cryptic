@@ -51,7 +51,7 @@ FOSSIL_TEARDOWN(c_auth_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST_CASE(c_test_auth_compute_null_params) {
+FOSSIL_TEST(c_test_auth_compute_null_params) {
     // Should fail with any null parameter
     char output[128];
     int rc;
@@ -75,7 +75,7 @@ FOSSIL_TEST_CASE(c_test_auth_compute_null_params) {
     ASSUME_ITS_EQUAL_I32(rc, -1);
 }
 
-FOSSIL_TEST_CASE(c_test_auth_compute_output_buffer_too_small) {
+FOSSIL_TEST(c_test_auth_compute_output_buffer_too_small) {
     // Output buffer too small should fail
     const char *algorithm = "hmac-sha256";
     const char *bits = "u64";
@@ -93,7 +93,7 @@ FOSSIL_TEST_CASE(c_test_auth_compute_output_buffer_too_small) {
     ASSUME_ITS_TRUE(rc != 0);
 }
 
-FOSSIL_TEST_CASE(c_test_auth_compute_invalid_algorithm) {
+FOSSIL_TEST(c_test_auth_compute_invalid_algorithm) {
     // Invalid algorithm should fail
     const char *algorithm = "invalid-algo";
     const char *bits = "u64";
@@ -111,7 +111,7 @@ FOSSIL_TEST_CASE(c_test_auth_compute_invalid_algorithm) {
     ASSUME_ITS_TRUE(rc != 0);
 }
 
-FOSSIL_TEST_CASE(c_test_auth_compute_invalid_bits) {
+FOSSIL_TEST(c_test_auth_compute_invalid_bits) {
     // Invalid bits should fail
     const char *algorithm = "hmac-sha256";
     const char *bits = "invalid-bits";
@@ -129,7 +129,7 @@ FOSSIL_TEST_CASE(c_test_auth_compute_invalid_bits) {
     ASSUME_ITS_TRUE(rc != 0);
 }
 
-FOSSIL_TEST_CASE(c_test_auth_compute_invalid_base) {
+FOSSIL_TEST(c_test_auth_compute_invalid_base) {
     // Invalid base should fail
     const char *algorithm = "hmac-sha256";
     const char *bits = "u64";
