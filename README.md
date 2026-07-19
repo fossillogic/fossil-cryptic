@@ -42,7 +42,7 @@ Add the `fossil-cryptic.wrap` file in your `subprojects` directory and include t
 ```ini
 [wrap-git]
 url = https://github.com/fossillogic/fossil-cryptic.git
-revision = v0.1.1
+revision = v1.0.0
 
 [provide]
 dependency_names = fossil-cryptic
