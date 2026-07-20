@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/cryptic/framework.h"
 
 
@@ -135,10 +135,10 @@ FOSSIL_TEST(cpp_test_cipher_compute_caesar_encrypt_decrypt) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_cipher_tests) {
-    FOSSIL_TEST_ADD(cpp_cipher_fixture, cpp_test_cipher_compute_basicpp_xor_encrypt_decrypt);
-    FOSSIL_TEST_ADD(cpp_cipher_fixture, cpp_test_cipher_compute_null_arguments);
-    FOSSIL_TEST_ADD(cpp_cipher_fixture, cpp_test_cipher_compute_unsupported_algorithm);
-    FOSSIL_TEST_ADD(cpp_cipher_fixture, cpp_test_cipher_compute_caesar_encrypt_decrypt);
+    FOSSIL_ADD_TEST(cpp_cipher_fixture, cpp_test_cipher_compute_basicpp_xor_encrypt_decrypt);
+    FOSSIL_ADD_TEST(cpp_cipher_fixture, cpp_test_cipher_compute_null_arguments);
+    FOSSIL_ADD_TEST(cpp_cipher_fixture, cpp_test_cipher_compute_unsupported_algorithm);
+    FOSSIL_ADD_TEST(cpp_cipher_fixture, cpp_test_cipher_compute_caesar_encrypt_decrypt);
 
-    FOSSIL_TEST_REGISTER(cpp_cipher_fixture);
+    FOSSIL_ADD_SUITE(cpp_cipher_fixture);
 } // end of tests

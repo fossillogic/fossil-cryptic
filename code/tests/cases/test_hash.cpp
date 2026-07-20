@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/cryptic/framework.h"
 
 
@@ -296,26 +296,26 @@ FOSSIL_TEST(cpp_test_null_args) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_hash_tests) {
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_crc32_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_fnv1a32_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_fnv1a64_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_murmur3_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_crc64_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_djb2_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_sdbm_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_xor_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_cityhash32_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_cityhash64_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_xxhash32_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_xxhash64_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_murmur3_64_oneshot);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_crc32_decpp_base);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_crc32_oct_base);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_crc32_bin_base);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_invalid_algorithm);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_invalid_bits);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_invalid_base);
-    FOSSIL_TEST_ADD(cpp_hash_fixture, cpp_test_null_args);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_crc32_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_fnv1a32_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_fnv1a64_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_murmur3_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_crc64_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_djb2_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_sdbm_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_xor_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_cityhash32_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_cityhash64_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_xxhash32_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_xxhash64_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_murmur3_64_oneshot);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_crc32_decpp_base);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_crc32_oct_base);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_crc32_bin_base);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_invalid_algorithm);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_invalid_bits);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_invalid_base);
+    FOSSIL_ADD_TEST(cpp_hash_fixture, cpp_test_null_args);
 
-    FOSSIL_TEST_REGISTER(cpp_hash_fixture);
+    FOSSIL_ADD_SUITE(cpp_hash_fixture);
 } // end of tests

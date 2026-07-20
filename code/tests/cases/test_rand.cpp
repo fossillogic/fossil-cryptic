@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/cryptic/framework.h"
 
 
@@ -127,14 +127,14 @@ FOSSIL_TEST(cpp_test_rand_compute_unsupported_base) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_rand_tests) {
-    FOSSIL_TEST_ADD(cpp_rand_fixture, cpp_test_rand_compute_basicpp_lcg_hex_u32);
-    FOSSIL_TEST_ADD(cpp_rand_fixture, cpp_test_rand_compute_basicpp_lcg_hex_u64);
-    FOSSIL_TEST_ADD(cpp_rand_fixture, cpp_test_rand_compute_xor_base64_u32);
-    FOSSIL_TEST_ADD(cpp_rand_fixture, cpp_test_rand_compute_mix_base64_u64);
-    FOSSIL_TEST_ADD(cpp_rand_fixture, cpp_test_rand_compute_auto_params);
-    FOSSIL_TEST_ADD(cpp_rand_fixture, cpp_test_rand_compute_null_arguments);
-    FOSSIL_TEST_ADD(cpp_rand_fixture, cpp_test_rand_compute_unsupported_algorithm);
-    FOSSIL_TEST_ADD(cpp_rand_fixture, cpp_test_rand_compute_unsupported_base);
+    FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_basicpp_lcg_hex_u32);
+    FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_basicpp_lcg_hex_u64);
+    FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_xor_base64_u32);
+    FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_mix_base64_u64);
+    FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_auto_params);
+    FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_null_arguments);
+    FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_unsupported_algorithm);
+    FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_unsupported_base);
 
-    FOSSIL_TEST_REGISTER(cpp_rand_fixture);
+    FOSSIL_ADD_SUITE(cpp_rand_fixture);
 } // end of tests

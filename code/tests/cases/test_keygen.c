@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/cryptic/framework.h"
 
 
@@ -111,13 +111,13 @@ FOSSIL_TEST(c_test_keygen_compute_unsupported_base) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_keygen_tests) {
-    FOSSIL_TEST_ADD(c_keygen_fixture, c_test_keygen_compute_basic_fnv_hex_u32);
-    FOSSIL_TEST_ADD(c_keygen_fixture, c_test_keygen_compute_basic_fnv_hex_u64);
-    FOSSIL_TEST_ADD(c_keygen_fixture, c_test_keygen_compute_crc_base64_u32);
-    FOSSIL_TEST_ADD(c_keygen_fixture, c_test_keygen_compute_mix_auto_auto);
-    FOSSIL_TEST_ADD(c_keygen_fixture, c_test_keygen_compute_null_arguments);
-    FOSSIL_TEST_ADD(c_keygen_fixture, c_test_keygen_compute_unsupported_algorithm);
-    FOSSIL_TEST_ADD(c_keygen_fixture, c_test_keygen_compute_unsupported_base);
+    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_basic_fnv_hex_u32);
+    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_basic_fnv_hex_u64);
+    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_crc_base64_u32);
+    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_mix_auto_auto);
+    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_null_arguments);
+    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_unsupported_algorithm);
+    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_unsupported_base);
 
-    FOSSIL_TEST_REGISTER(c_keygen_fixture);
+    FOSSIL_ADD_SUITE(c_keygen_fixture);
 } // end of tests

@@ -17,12 +17,12 @@
  * under the License.
  *
  * Author: Michael Gene Brockus (Dreamer)
- * Date: 04/05/2014
+ * Date: 04/05/2013
  *
- * Copyright (C) 2014-2025 Fossil Logic. All rights reserved.
+ * Copyright (C) 2013-Current Fossil Logic. All rights reserved.
  * -----------------------------------------------------------------------------
  */
-#include <fossil/pizza/framework.h>
+#include <fossil/maip/framework.h>
 #include "fossil/cryptic/framework.h"
 
 
@@ -152,11 +152,11 @@ FOSSIL_TEST(cpp_test_auth_compute_invalid_base) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_auth_tests) {
-    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_auth_compute_null_params);
-    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_auth_compute_output_buffer_too_small);
-    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_auth_compute_invalid_algorithm);
-    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_auth_compute_invalid_bits);
-    FOSSIL_TEST_ADD(cpp_auth_fixture, cpp_test_auth_compute_invalid_base);
+    FOSSIL_ADD_TEST(cpp_auth_fixture, cpp_test_auth_compute_null_params);
+    FOSSIL_ADD_TEST(cpp_auth_fixture, cpp_test_auth_compute_output_buffer_too_small);
+    FOSSIL_ADD_TEST(cpp_auth_fixture, cpp_test_auth_compute_invalid_algorithm);
+    FOSSIL_ADD_TEST(cpp_auth_fixture, cpp_test_auth_compute_invalid_bits);
+    FOSSIL_ADD_TEST(cpp_auth_fixture, cpp_test_auth_compute_invalid_base);
 
-    FOSSIL_TEST_REGISTER(cpp_auth_fixture);
+    FOSSIL_ADD_SUITE(cpp_auth_fixture);
 } // end of tests
