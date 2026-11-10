@@ -54,7 +54,7 @@ FOSSIL_TEARDOWN(c_rand_fixture) {
 FOSSIL_TEST(c_test_rand_compute_basic_lcg_hex_u32) {
     // Basic LCG, hex, u32
     char output[32];
-    int rc = fossil_cryptic_rand_compute("lcg", "u32", "hex", "seed123", output, sizeof(output));
+    int rc = fossil_cryptic_rand_compute("lcg", "u32", "hex", output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, 0);
     ASSUME_ITS_TRUE(strlen(output) == 8); // 8 hex digits for u32
 }
@@ -62,7 +62,7 @@ FOSSIL_TEST(c_test_rand_compute_basic_lcg_hex_u32) {
 FOSSIL_TEST(c_test_rand_compute_basic_lcg_hex_u64) {
     // Basic LCG, hex, u64
     char output[32];
-    int rc = fossil_cryptic_rand_compute("lcg", "u64", "hex", "seed456", output, sizeof(output));
+    int rc = fossil_cryptic_rand_compute("lcg", "u64", "hex", output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, 0);
     ASSUME_ITS_TRUE(strlen(output) == 16); // 16 hex digits for u64
 }
@@ -70,7 +70,7 @@ FOSSIL_TEST(c_test_rand_compute_basic_lcg_hex_u64) {
 FOSSIL_TEST(c_test_rand_compute_xor_base64_u32) {
     // XOR, base64, u32
     char output[32];
-    int rc = fossil_cryptic_rand_compute("xor", "u32", "base64", "seed789", output, sizeof(output));
+    int rc = fossil_cryptic_rand_compute("xor", "u32", "base64", output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, 0);
     ASSUME_ITS_TRUE(strlen(output) >= 6); // base64 for 4 bytes
 }
@@ -78,7 +78,7 @@ FOSSIL_TEST(c_test_rand_compute_xor_base64_u32) {
 FOSSIL_TEST(c_test_rand_compute_mix_base64_u64) {
     // Mix, base64, u64
     char output[32];
-    int rc = fossil_cryptic_rand_compute("mix", "u64", "base64", "seedABC", output, sizeof(output));
+    int rc = fossil_cryptic_rand_compute("mix", "u64", "base64", output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, 0);
     ASSUME_ITS_TRUE(strlen(output) >= 11); // base64 for 8 bytes
 }
@@ -86,7 +86,7 @@ FOSSIL_TEST(c_test_rand_compute_mix_base64_u64) {
 FOSSIL_TEST(c_test_rand_compute_auto_params) {
     // All "auto" parameters
     char output[32];
-    int rc = fossil_cryptic_rand_compute("auto", "auto", "auto", NULL, output, sizeof(output));
+    int rc = fossil_cryptic_rand_compute("auto", "auto", "auto", output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, 0);
     ASSUME_ITS_TRUE(strlen(output) > 0);
 }
@@ -94,23 +94,23 @@ FOSSIL_TEST(c_test_rand_compute_auto_params) {
 FOSSIL_TEST(c_test_rand_compute_null_arguments) {
     // Should fail with null arguments
     char output[32];
-    ASSUME_ITS_EQUAL_I32(fossil_cryptic_rand_compute(NULL, "u32", "hex", "seed", output, sizeof(output)), -1);
-    ASSUME_ITS_EQUAL_I32(fossil_cryptic_rand_compute("lcg", NULL, "hex", "seed", output, sizeof(output)), -1);
-    ASSUME_ITS_EQUAL_I32(fossil_cryptic_rand_compute("lcg", "u32", NULL, "seed", output, sizeof(output)), -1);
-    ASSUME_ITS_EQUAL_I32(fossil_cryptic_rand_compute("lcg", "u32", "hex", "seed", NULL, sizeof(output)), -1);
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_rand_compute(NULL, "u32", "hex", output, sizeof(output)), -1);
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_rand_compute("lcg", NULL, "hex", output, sizeof(output)), -1);
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_rand_compute("lcg", "u32", NULL, output, sizeof(output)), -1);
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_rand_compute("lcg", "u32", "hex", NULL, sizeof(output)), -1);
 }
 
 FOSSIL_TEST(c_test_rand_compute_unsupported_algorithm) {
     // Unsupported algorithm
     char output[32];
-    int rc = fossil_cryptic_rand_compute("unknown", "u32", "hex", "seed", output, sizeof(output));
+    int rc = fossil_cryptic_rand_compute("unknown", "u32", "hex", output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, -2);
 }
 
 FOSSIL_TEST(c_test_rand_compute_unsupported_base) {
     // Unsupported base
     char output[32];
-    int rc = fossil_cryptic_rand_compute("lcg", "u32", "octal", "seed", output, sizeof(output));
+    int rc = fossil_cryptic_rand_compute("lcg", "u32", "octal", output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, -3);
 }
 
