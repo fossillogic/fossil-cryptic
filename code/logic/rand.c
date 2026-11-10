@@ -41,12 +41,12 @@
 // ===========================================================
 static int secure_random_bytes(uint8_t* out, size_t len) {
 #if defined(_WIN32)
-    typedef LONG (WINAPI *bcrypt_gen_random_fn)(void*, unsigned char*, ULONG);
+    typedef LONG (WINAPI *bcrypt_gen_random_fn)(void*, unsigned char*, ULONG, ULONG);
     HMODULE bcrypt = LoadLibraryA("bcrypt.dll");
     if (!bcrypt) return -1;
 
     bcrypt_gen_random_fn gen_random =
-        (bcrypt_gen_random_fn)(void*)GetProcAddress(bcrypt, "BCryptGenRandom");
+        (bcrypt_gen_random_fn)GetProcAddress(bcrypt, "BCryptGenRandom");
     if (!gen_random) {
         FreeLibrary(bcrypt);
         return -1;
