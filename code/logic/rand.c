@@ -27,9 +27,16 @@
 #include <string.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <limits.h>
 
 #if defined(_WIN32)
 #include <windows.h>
+#elif defined(__linux__)
+#include <sys/random.h>
+#include <errno.h>
+#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || \
+    defined(__NetBSD__) || defined(__DragonFly__)
+#include <stdlib.h>
 #else
 #include <errno.h>
 #include <fcntl.h>
@@ -54,9 +61,35 @@ static int secure_random_bytes(uint8_t* out, size_t len) {
     memcpy(&gen_random, &proc, sizeof(gen_random));
 
     /* BCRYPT_USE_SYSTEM_PREFERRED_RNG */
-    LONG status = gen_random(NULL, out, (ULONG)len, 0x00000002);
+    size_t done = 0;
+    LONG status = 0;
+    while (done < len) {
+        size_t remaining = len - done;
+        ULONG chunk = remaining > (size_t)ULONG_MAX
+            ? ULONG_MAX : (ULONG)remaining;
+        status = gen_random(NULL, out + done, chunk, 0x00000002);
+        if (status < 0) break;
+        done += chunk;
+    }
     FreeLibrary(bcrypt);
-    return status >= 0 ? 0 : -1;
+    return status >= 0 && done == len ? 0 : -1;
+#elif defined(__linux__)
+    size_t done = 0;
+    while (done < len) {
+        ssize_t n = getrandom(out + done, len - done, 0);
+        if (n > 0) {
+            done += (size_t)n;
+        } else if (n < 0 && errno == EINTR) {
+            continue;
+        } else {
+            return -1;
+        }
+    }
+    return 0;
+#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || \
+      defined(__NetBSD__) || defined(__DragonFly__)
+    arc4random_buf(out, len);
+    return 0;
 #else
     int fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0) return -1;
@@ -109,7 +142,6 @@ int fossil_cryptic_rand_compute(
     const char* algorithm,
     const char* bits,
     const char* base,
-    const char* seed,
     char* output, size_t output_len
 ) {
     if (!algorithm || !bits || !base || !output) return -1;
@@ -128,7 +160,6 @@ int fossil_cryptic_rand_compute(
 
     size_t len = use64 ? 8 : 4;
     uint8_t random_bytes[8];
-    (void)seed; /* A caller-provided seed must not weaken or determine randomness. */
     if (secure_random_bytes(random_bytes, len) != 0) return -4;
 
     // Encode output

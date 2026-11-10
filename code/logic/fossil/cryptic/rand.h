@@ -48,8 +48,6 @@ extern "C" {
  * @param base
  *      The output encoding/base for the random string. Supported values:
  *      - "hex", "base64", "auto"
- * @param seed
- *      Optional seed value for the random generator (NULL for default/random seed).
  * @param output
  *      Pointer to the buffer where the resulting random string will be written.
  * @param output_len
@@ -62,7 +60,6 @@ int fossil_cryptic_rand_compute(
     const char* algorithm,   // "lcg", "xor", "mix", "auto"
     const char* bits,        // "u32", "u64", "auto"
     const char* base,        // "hex", "base64", "auto"
-    const char* seed,        // optional seed (NULL for randomish)
     char* output, size_t output_len
 );
 
@@ -91,8 +88,6 @@ namespace fossil {
              * @param base
              *      The output encoding/base for the random string. Supported values:
              *      - "hex", "base64", "auto"
-             * @param seed
-             *      Optional seed value for the random generator (empty string for default/random seed).
              * @return
              *      The resulting random string.
              * @throws std::invalid_argument on invalid parameters.
@@ -101,8 +96,7 @@ namespace fossil {
             static std::string compute(
             const std::string& algorithm,
             const std::string& bits,
-            const std::string& base,
-            const std::string& seed = ""
+            const std::string& base
             ) {
             // Validate input parameters
             if (algorithm.empty() || bits.empty() || base.empty()) {
@@ -129,12 +123,10 @@ namespace fossil {
             }
 
             std::array<char, 128> buffer{};
-            const char* seed_ptr = seed.empty() ? nullptr : seed.c_str();
             int result = fossil_cryptic_rand_compute(
                 algorithm.c_str(),
                 bits.c_str(),
                 base.c_str(),
-                seed_ptr,
                 buffer.data(),
                 buffer.size()
             );
