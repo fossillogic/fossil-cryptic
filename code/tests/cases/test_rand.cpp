@@ -51,27 +51,27 @@ FOSSIL_TEARDOWN(cpp_rand_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST(cpp_test_rand_compute_basicpp_lcg_hex_u32) {
+FOSSIL_TEST(cpp_test_rand_compute_basic_lcg_hex_u32) {
     // Basic LCG, hex, u32
-    std::string output = fossil::cryptic::Rand::compute("lcg", "u32", "hex", "seed123");
+    std::string output = fossil::cryptic::Rand::compute("lcg", "u32", "hex");
     ASSUME_ITS_TRUE(output.length() == 8); // 8 hex digits for u32
 }
 
-FOSSIL_TEST(cpp_test_rand_compute_basicpp_lcg_hex_u64) {
+FOSSIL_TEST(cpp_test_rand_compute_basic_lcg_hex_u64) {
     // Basic LCG, hex, u64
-    std::string output = fossil::cryptic::Rand::compute("lcg", "u64", "hex", "seed456");
+    std::string output = fossil::cryptic::Rand::compute("lcg", "u64", "hex");
     ASSUME_ITS_TRUE(output.length() == 16); // 16 hex digits for u64
 }
 
 FOSSIL_TEST(cpp_test_rand_compute_xor_base64_u32) {
     // XOR, base64, u32
-    std::string output = fossil::cryptic::Rand::compute("xor", "u32", "base64", "seed789");
+    std::string output = fossil::cryptic::Rand::compute("xor", "u32", "base64");
     ASSUME_ITS_TRUE(output.length() >= 6); // base64 for 4 bytes
 }
 
 FOSSIL_TEST(cpp_test_rand_compute_mix_base64_u64) {
     // Mix, base64, u64
-    std::string output = fossil::cryptic::Rand::compute("mix", "u64", "base64", "seedABC");
+    std::string output = fossil::cryptic::Rand::compute("mix", "u64", "base64");
     ASSUME_ITS_TRUE(output.length() >= 11); // base64 for 8 bytes
 }
 
@@ -84,19 +84,19 @@ FOSSIL_TEST(cpp_test_rand_compute_auto_params) {
 FOSSIL_TEST(cpp_test_rand_compute_null_arguments) {
     // Should fail with null arguments
     try {
-        fossil::cryptic::Rand::compute("", "u32", "hex", "seed");
+        fossil::cryptic::Rand::compute("", "u32", "hex");
         ASSUME_ITS_TRUE(false); // Should not reach here
     } catch (const std::exception&) {
         ASSUME_ITS_TRUE(true);
     }
     try {
-        fossil::cryptic::Rand::compute("lcg", "", "hex", "seed");
+        fossil::cryptic::Rand::compute("lcg", "", "hex");
         ASSUME_ITS_TRUE(false);
     } catch (const std::exception&) {
         ASSUME_ITS_TRUE(true);
     }
     try {
-        fossil::cryptic::Rand::compute("lcg", "u32", "", "seed");
+        fossil::cryptic::Rand::compute("lcg", "u32", "");
         ASSUME_ITS_TRUE(false);
     } catch (const std::exception&) {
         ASSUME_ITS_TRUE(true);
@@ -106,7 +106,7 @@ FOSSIL_TEST(cpp_test_rand_compute_null_arguments) {
 FOSSIL_TEST(cpp_test_rand_compute_unsupported_algorithm) {
     // Unsupported algorithm
     try {
-        fossil::cryptic::Rand::compute("unknown", "u32", "hex", "seed");
+        fossil::cryptic::Rand::compute("unknown", "u32", "hex");
         ASSUME_ITS_TRUE(false);
     } catch (const std::exception&) {
         ASSUME_ITS_TRUE(true);
@@ -116,7 +116,7 @@ FOSSIL_TEST(cpp_test_rand_compute_unsupported_algorithm) {
 FOSSIL_TEST(cpp_test_rand_compute_unsupported_base) {
     // Unsupported base
     try {
-        fossil::cryptic::Rand::compute("lcg", "u32", "octal", "seed");
+        fossil::cryptic::Rand::compute("lcg", "u32", "octal");
         ASSUME_ITS_TRUE(false);
     } catch (const std::exception&) {
         ASSUME_ITS_TRUE(true);
@@ -127,8 +127,8 @@ FOSSIL_TEST(cpp_test_rand_compute_unsupported_base) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_rand_tests) {
-    FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_basicpp_lcg_hex_u32);
-    FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_basicpp_lcg_hex_u64);
+    FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_basic_lcg_hex_u32);
+    FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_basic_lcg_hex_u64);
     FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_xor_base64_u32);
     FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_mix_base64_u64);
     FOSSIL_ADD_TEST(cpp_rand_fixture, cpp_test_rand_compute_auto_params);
