@@ -45,12 +45,13 @@ static int secure_random_bytes(uint8_t* out, size_t len) {
     HMODULE bcrypt = LoadLibraryA("bcrypt.dll");
     if (!bcrypt) return -1;
 
-    bcrypt_gen_random_fn gen_random =
-        (bcrypt_gen_random_fn)GetProcAddress(bcrypt, "BCryptGenRandom");
-    if (!gen_random) {
+    FARPROC proc = GetProcAddress(bcrypt, "BCryptGenRandom");
+    if (!proc) {
         FreeLibrary(bcrypt);
         return -1;
     }
+    bcrypt_gen_random_fn gen_random = NULL;
+    memcpy(&gen_random, &proc, sizeof(gen_random));
 
     /* BCRYPT_USE_SYSTEM_PREFERRED_RNG */
     LONG status = gen_random(NULL, out, (ULONG)len, 0x00000002);
