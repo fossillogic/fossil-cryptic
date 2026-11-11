@@ -39,7 +39,8 @@ int fossil_cryptic_auth_compute(
     const void* input, size_t input_len,
     char* output, size_t output_len
 ) {
-    if (!algorithm || !bits || !base || !key || !input || !output) return -1;
+    if (!algorithm || !bits || !base || !key || (!input && input_len != 0) || !output)
+        return -1;
 
     size_t key_len = strlen(key);
     uint8_t k_ipad[HMAC_BLOCK_SIZE];
@@ -48,25 +49,34 @@ int fossil_cryptic_auth_compute(
     char key_hash_str[2 * HMAC_BLOCK_SIZE + 1];
     size_t hash_size = 0;
 
+    if (output_len < 2 || input_len > (size_t)-1 - HMAC_BLOCK_SIZE)
+        return -1;
+
     if (strcmp(bits, "u64") == 0) hash_size = 8;
     else if (strcmp(bits, "u32") == 0) hash_size = 4;
     else return -1;
 
     // Step 1: If key > block size, hash it first
+    memset(key_hash, 0, sizeof(key_hash));
     if (key_len > HMAC_BLOCK_SIZE) {
         if (fossil_cryptic_hash_compute(algorithm, bits, "hex", key_hash_str, sizeof(key_hash_str), key, key_len) != 0)
             return -2;
 
-        // Convert hex string to bytes
+        // Convert the hex digest to bytes.
         for (size_t i = 0; i < hash_size; i++) {
-            unsigned int byte = 0;
-            if (sscanf(key_hash_str + i * 2, "%2x", &byte) != 1)
+            unsigned char hi = (unsigned char)key_hash_str[i * 2];
+            unsigned char lo = (unsigned char)key_hash_str[i * 2 + 1];
+            unsigned int h = hi >= '0' && hi <= '9' ? hi - '0' :
+                             hi >= 'a' && hi <= 'f' ? hi - 'a' + 10 :
+                             hi >= 'A' && hi <= 'F' ? hi - 'A' + 10 : 16;
+            unsigned int l = lo >= '0' && lo <= '9' ? lo - '0' :
+                             lo >= 'a' && lo <= 'f' ? lo - 'a' + 10 :
+                             lo >= 'A' && lo <= 'F' ? lo - 'A' + 10 : 16;
+            if (h > 15 || l > 15)
                 return -2;
-            key_hash[i] = (uint8_t)byte;
+            key_hash[i] = (uint8_t)((h << 4) | l);
         }
-        key_len = hash_size;
     } else {
-        memset(key_hash, 0, HMAC_BLOCK_SIZE);
         memcpy(key_hash, key, key_len);
     }
 
@@ -82,9 +92,11 @@ int fossil_cryptic_auth_compute(
     uint8_t* inner_buffer = (uint8_t*)malloc(HMAC_BLOCK_SIZE + input_len);
     if (!inner_buffer) return -5;
     memcpy(inner_buffer, k_ipad, HMAC_BLOCK_SIZE);
-    memcpy(inner_buffer + HMAC_BLOCK_SIZE, input, input_len);
+    if (input_len != 0)
+        memcpy(inner_buffer + HMAC_BLOCK_SIZE, input, input_len);
 
     char inner_hash_str[2 * HMAC_BLOCK_SIZE + 1];
+    memset(inner_hash_str, 0, sizeof(inner_hash_str));
     if (fossil_cryptic_hash_compute(algorithm, bits, "hex", inner_hash_str, sizeof(inner_hash_str),
                              inner_buffer, HMAC_BLOCK_SIZE + input_len) != 0) {
         free(inner_buffer);
@@ -95,10 +107,17 @@ int fossil_cryptic_auth_compute(
     // Convert inner hash string to bytes
     uint8_t inner_hash_bytes[HMAC_BLOCK_SIZE];
     for (size_t i = 0; i < hash_size; i++) {
-        unsigned int byte = 0;
-        if (sscanf(inner_hash_str + i * 2, "%2x", &byte) != 1)
+        unsigned char hi = (unsigned char)inner_hash_str[i * 2];
+        unsigned char lo = (unsigned char)inner_hash_str[i * 2 + 1];
+        unsigned int h = hi >= '0' && hi <= '9' ? hi - '0' :
+                         hi >= 'a' && hi <= 'f' ? hi - 'a' + 10 :
+                         hi >= 'A' && hi <= 'F' ? hi - 'A' + 10 : 16;
+        unsigned int l = lo >= '0' && lo <= '9' ? lo - '0' :
+                         lo >= 'a' && lo <= 'f' ? lo - 'a' + 10 :
+                         lo >= 'A' && lo <= 'F' ? lo - 'A' + 10 : 16;
+        if (h > 15 || l > 15)
             return -3;
-        inner_hash_bytes[i] = (uint8_t)byte;
+        inner_hash_bytes[i] = (uint8_t)((h << 4) | l);
     }
 
     // Step 4: Compute outer hash: hash(outer_pad || inner_hash)
@@ -113,12 +132,8 @@ int fossil_cryptic_auth_compute(
     );
     if (rc != 0) return rc;
 
-    // Ensure output is null-terminated if base is "hex" or "base64"
-    if (output_len > 0)
-        output[output_len - 1] = '\0';
-
-    // Check output buffer size (simulate failure if too small)
-    if (strlen(output) == 0 || output_len < 2)
+    // The hash API returns encoded text; reject missing or unterminated output.
+    if (!memchr(output, '\0', output_len) || output[0] == '\0')
         return -6;
 
     return 0;
