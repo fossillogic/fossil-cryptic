@@ -20,9 +20,7 @@ if host_machine.system() == 'windows'
 endif
 
 if host_machine.system() == 'darwin'
-    platform_deps += [
-        dependency('appleframeworks', modules: ['IOKit', 'CoreGraphics', 'Foundation'])
-    ]
+    platform_deps += []
 endif
 
 # Linux has no extra libraries (keep empty)
