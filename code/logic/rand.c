@@ -34,9 +34,6 @@
 #elif defined(__linux__)
 #include <sys/random.h>
 #include <errno.h>
-#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || \
-    defined(__NetBSD__) || defined(__DragonFly__)
-#include <stdlib.h>
 #else
 #include <errno.h>
 #include <fcntl.h>
@@ -85,10 +82,6 @@ static int secure_random_bytes(uint8_t* out, size_t len) {
             return -1;
         }
     }
-    return 0;
-#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || \
-      defined(__NetBSD__) || defined(__DragonFly__)
-    arc4random_buf(out, len);
     return 0;
 #else
     int fd = open("/dev/urandom", O_RDONLY);
