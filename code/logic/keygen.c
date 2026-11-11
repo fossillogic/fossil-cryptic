@@ -283,6 +283,22 @@ int fossil_cryptic_keygen_compute(
 ) {
     if (!algorithm || !bits || !base || !seed || !output) return -1;
 
+    if (strcmp(algorithm, "hkdf") == 0) {
+        uint8_t random_seed[32];
+        uint8_t key[32];
+        const uint8_t* key_seed = (const uint8_t*)seed;
+        size_t key_seed_len = strlen(seed);
+
+        if (strcmp(seed, "random") == 0) {
+            if (secure_random_bytes(random_seed, sizeof(random_seed)) != 0) return -4;
+            key_seed = random_seed;
+            key_seed_len = sizeof(random_seed);
+        }
+
+        hkdf_sha256(key_seed, key_seed_len, key);
+        return encode_key(key, base, output, output_len);
+    }
+
     int use64 = 0;
     if (strcmp(bits, "u64") == 0) use64 = 1;
     else if (strcmp(bits, "u32") == 0) use64 = 0;
