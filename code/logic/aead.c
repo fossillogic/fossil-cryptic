@@ -349,9 +349,9 @@ static void aead_mac(uint8_t tag[16],
     /* lengths as 64-bit little-endian */
     memset(lens, 0, 16);
     store32_le(lens + 0, (uint32_t)ad_len);
-    store32_le(lens + 4, (uint32_t)(ad_len >> 32));
+    store32_le(lens + 4, (uint32_t)((uint64_t)ad_len >> 32));
     store32_le(lens + 8, (uint32_t)ct_len);
-    store32_le(lens +12, (uint32_t)(ct_len >> 32));
+    store32_le(lens +12, (uint32_t)((uint64_t)ct_len >> 32));
     poly1305_update(&st, lens, 16);
     poly1305_finish(&st, tag);
 }
