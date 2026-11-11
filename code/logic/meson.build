@@ -3,7 +3,14 @@ dir = include_directories('.')
 subdir('fossil')
 
 fossil_cryptic_lib = library('fossil_cryptic',
-    files('hash.c', 'auth.c', 'cipher.c', 'keygen.c', 'rand.c'),
+    files(
+        'hash.c',
+        'auth.c',
+        'cipher.c',
+        'keygen.c',
+        'rand.c',
+        'aead.c',
+        'aes.c'),
     install: true,
     dependencies: [dependency('threads'), platform_deps],
     include_directories: dir)
