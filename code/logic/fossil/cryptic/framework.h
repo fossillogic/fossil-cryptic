@@ -27,6 +27,7 @@
 
 #include "hash.h"
 #include "auth.h"
+#include "aead.h"
 #include "cipher.h"
 #include "keygen.h"
 #include "rand.h"
