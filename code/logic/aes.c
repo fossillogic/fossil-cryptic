@@ -69,13 +69,6 @@ static uint32_t rd_be(const uint8_t *p) {
            ((uint32_t)p[2] <<  8) |  (uint32_t)p[3];
 }
 
-static void wr_be(uint8_t *p, uint32_t v) {
-    p[0] = (uint8_t)(v >> 24);
-    p[1] = (uint8_t)(v >> 16);
-    p[2] = (uint8_t)(v >>  8);
-    p[3] = (uint8_t) v;
-}
-
 static uint32_t sub_word(uint32_t w) {
     return ((uint32_t)sbox[(w >> 24) & 0xff] << 24) |
            ((uint32_t)sbox[(w >> 16) & 0xff] << 16) |
@@ -117,49 +110,6 @@ static uint8_t mul(uint8_t a, uint8_t b) {
     return r;
 }
 
-static void aes256_encrypt_block(uint8_t out[16], const uint8_t in[16],
-                                 const uint32_t rk[60]) {
-    uint8_t s[16];
-    int round, i;
-
-    for (i = 0; i < 16; i++)
-        s[i] = in[i] ^ ((rk[i / 4] >> (24 - 8 * (i % 4))) & 0xff);
-
-    for (round = 1; round <= 13; round++) {
-        uint8_t t[16];
-        /* SubBytes */
-        for (i = 0; i < 16; i++) t[i] = sbox[s[i]];
-        /* ShiftRows */
-        s[0]=t[0]; s[1]=t[5]; s[2]=t[10]; s[3]=t[15];
-        s[4]=t[4]; s[5]=t[9]; s[6]=t[14]; s[7]=t[3];
-        s[8]=t[8]; s[9]=t[13]; s[10]=t[2]; s[11]=t[7];
-        s[12]=t[12]; s[13]=t[1]; s[14]=t[6]; s[15]=t[11];
-        /* MixColumns (skip in final round) */
-        if (round < 13) {
-            for (i = 0; i < 4; i++) {
-                uint8_t a = s[i*4], b = s[i*4+1], c = s[i*4+2], d = s[i*4+3];
-                t[i*4  ] = mul(a,2) ^ mul(b,3) ^ c ^ d;
-                t[i*4+1] = a ^ mul(b,2) ^ mul(c,3) ^ d;
-                t[i*4+2] = a ^ b ^ mul(c,2) ^ mul(d,3);
-                t[i*4+3] = mul(a,3) ^ b ^ c ^ mul(d,2);
-            }
-            for (i = 0; i < 16; i++) s[i] = t[i];
-        } else {
-            for (i = 0; i < 16; i++) s[i] = t[i];
-        }
-        /* AddRoundKey */
-        for (i = 0; i < 16; i++)
-            s[i] ^= (rk[round * 4 + i / 4] >> (24 - 8 * (i % 4))) & 0xff;
-    }
-    /* Final round already did SubBytes/ShiftRows/AddRoundKey above for round 13
-       – fix: standard AES-256 has 14 rounds. Correct structure below. */
-    memcpy(out, s, 16);
-}
-
-/*
- * Correct AES-256 encrypt (14 rounds). The loop above is simplified for
- * readability in this sketch; use the following canonical form instead.
- */
 static void aes256_encrypt_block_correct(uint8_t out[16], const uint8_t in[16],
                                          const uint32_t rk[60]) {
     uint8_t s[16], t[16];
