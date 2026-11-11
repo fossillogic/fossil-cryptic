@@ -74,15 +74,15 @@ FOSSIL_TEST(cpp_test_aead_encrypt_null_params) {
     uint8_t ciphertext[sizeof(plaintext) + 16];
 
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::encrypt(
-        NULL, key, nonce, ad, sizeof(ad), plaintext, sizeof(plaintext)), -1);
+        nullptr, key, nonce, ad, sizeof(ad), plaintext, sizeof(plaintext)), -1);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::encrypt(
-        ciphertext, NULL, nonce, ad, sizeof(ad), plaintext, sizeof(plaintext)), -1);
+        ciphertext, nullptr, nonce, ad, sizeof(ad), plaintext, sizeof(plaintext)), -1);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::encrypt(
-        ciphertext, key, NULL, ad, sizeof(ad), plaintext, sizeof(plaintext)), -1);
+        ciphertext, key, nullptr, ad, sizeof(ad), plaintext, sizeof(plaintext)), -1);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::encrypt(
-        ciphertext, key, nonce, NULL, sizeof(ad), plaintext, sizeof(plaintext)), -1);
+        ciphertext, key, nonce, nullptr, sizeof(ad), plaintext, sizeof(plaintext)), -1);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::encrypt(
-        ciphertext, key, nonce, ad, sizeof(ad), NULL, sizeof(plaintext)), -1);
+        ciphertext, key, nonce, ad, sizeof(ad), nullptr, sizeof(plaintext)), -1);
 }
 
 FOSSIL_TEST(cpp_test_aead_decrypt_null_params) {
@@ -93,15 +93,15 @@ FOSSIL_TEST(cpp_test_aead_decrypt_null_params) {
     uint8_t plaintext[1];
 
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::decrypt(
-        NULL, key, nonce, ad, sizeof(ad), ciphertext, 1), -1);
+        nullptr, key, nonce, ad, sizeof(ad), ciphertext, 1), -1);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::decrypt(
-        plaintext, NULL, nonce, ad, sizeof(ad), ciphertext, 1), -1);
+        plaintext, nullptr, nonce, ad, sizeof(ad), ciphertext, 1), -1);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::decrypt(
-        plaintext, key, NULL, ad, sizeof(ad), ciphertext, 1), -1);
+        plaintext, key, nullptr, ad, sizeof(ad), ciphertext, 1), -1);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::decrypt(
-        plaintext, key, nonce, NULL, sizeof(ad), ciphertext, 1), -1);
+        plaintext, key, nonce, nullptr, sizeof(ad), ciphertext, 1), -1);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::decrypt(
-        plaintext, key, nonce, ad, sizeof(ad), NULL, 1), -1);
+        plaintext, key, nonce, ad, sizeof(ad), nullptr, 1), -1);
 }
 
 FOSSIL_TEST(cpp_test_aead_decrypt_rejects_modified_tag) {
