@@ -134,7 +134,11 @@ namespace fossil {
                 throw std::runtime_error("Random value generation failed");
             }
             // Defensive: ensure null-terminated and trim at first null
-            return std::string(buffer.data(), strnlen(buffer.data(), buffer.size()));
+            size_t length = 0;
+            while (length < buffer.size() && buffer[length] != '\0') {
+                ++length;
+            }
+            return std::string(buffer.data(), length);
             }
         };
 

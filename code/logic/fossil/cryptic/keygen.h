@@ -122,8 +122,11 @@ namespace fossil {
                 throw std::runtime_error("Key generation failed");
             }
 
-            // Find the first null terminator to avoid trailing garbage
-            size_t len = strnlen(buffer.data(), buffer.size());
+            // Find the first null terminator without relying on strnlen.
+            size_t len = 0;
+            while (len < buffer.size() && buffer[len] != '\0') {
+                ++len;
+            }
             return std::string(buffer.data(), len);
             }
         };
