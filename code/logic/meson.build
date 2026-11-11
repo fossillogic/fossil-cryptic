@@ -8,10 +8,14 @@ else
     winsock_dep = []
 endif
 
+cc = meson.get_compiler('c')
+
+libdl = cc.find_library('dl', required: false)
+
 fossil_cryptic_lib = library('fossil_cryptic',
     files('hash.c', 'auth.c', 'cipher.c', 'keygen.c', 'rand.c'),
     install: true,
-    dependencies: [cc.find_library('m', required: false), dependency('threads'), winsock_dep],
+    dependencies: [cc.find_library('m', required: false), dependency('threads'), winsock_dep, libdl],
     include_directories: dir)
 
 fossil_cryptic_dep = declare_dependency(
