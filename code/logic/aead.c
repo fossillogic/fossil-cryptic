@@ -51,10 +51,11 @@ void fossil_cryptic_secure_wipe(void *buf, size_t len) {
 }
 
 int fossil_cryptic_aead_verify16(const uint8_t a[16], const uint8_t b[16]) {
-    uint8_t d = 0;
+    uint32_t d = 0;
+    if (!a || !b) return -1;
     for (int i = 0; i < 16; i++)
         d |= a[i] ^ b[i];
-    return (1 & ((d - 1) >> 8)) - 1; /* 0 if equal, -1 otherwise */
+    return (int)((d - 1U) >> 31) - 1; /* 0 if equal, -1 otherwise */
 }
 
 /* ---------- ChaCha20 core ---------- */
@@ -317,6 +318,8 @@ static void poly1305_finish(poly1305_ctx *st, uint8_t mac[16]) {
     for (i = 0; i < 4; i++)
         store32_le(mac + i * 4, t[i]);
 
+    fossil_cryptic_secure_wipe(hbytes, sizeof hbytes);
+    fossil_cryptic_secure_wipe(t, sizeof t);
     fossil_cryptic_secure_wipe(st, sizeof *st);
 }
 
@@ -368,6 +371,10 @@ int fossil_cryptic_aead_encrypt(
     uint8_t tag[16];
 
     if (!ciphertext || !key || !nonce) return -1;
+    /* Counter 0 supplies the Poly1305 key; data counters are 1..UINT32_MAX. */
+    if (text_len > SIZE_MAX - 16) return -1;
+    if (text_len / 64 > UINT32_MAX ||
+        (text_len / 64 == UINT32_MAX && text_len % 64 != 0)) return -1;
     if (text_len && !plaintext) return -1;
     if (ad_len && !ad) return -1;
 
@@ -405,6 +412,9 @@ int fossil_cryptic_aead_decrypt(
     int rc;
 
     if (!plaintext || !key || !nonce || !ciphertext) return -1;
+    if (text_len > SIZE_MAX - 16) return -1;
+    if (text_len / 64 > UINT32_MAX ||
+        (text_len / 64 == UINT32_MAX && text_len % 64 != 0)) return -1;
     if (ad_len && !ad) return -1;
 
     tag = ciphertext + text_len;
