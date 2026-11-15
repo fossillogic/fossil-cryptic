@@ -36,7 +36,8 @@ int fossil_cryptic_aes_gcm_verify16(const uint8_t a[16], const uint8_t b[16]) {
     uint8_t d = 0;
     for (int i = 0; i < 16; i++)
         d |= a[i] ^ b[i];
-    return (1 & ((d - 1) >> 8)) - 1; /* 0 equal, -1 differ */
+    /* Use unsigned arithmetic to avoid relying on signed right-shift behavior. */
+    return (int)(((uint32_t)d - 1U) >> 31) - 1; /* 0 equal, -1 differ */
 }
 
 /* ---------- AES-256 ---------- */
