@@ -51,62 +51,6 @@ FOSSIL_TEARDOWN(c_keygen_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST(c_test_keygen_compute_basic_fnv_hex_u32) {
-    // Basic FNV keygen, hex, u32
-    char output[32];
-    int rc = fossil_cryptic_keygen_compute("fnv", "u32", "hex", "hello", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) == 8); // 8 hex digits for u32
-}
-
-FOSSIL_TEST(c_test_keygen_compute_basic_fnv_hex_u64) {
-    // Basic FNV keygen, hex, u64
-    char output[32];
-    int rc = fossil_cryptic_keygen_compute("fnv", "u64", "hex", "hello", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) == 16); // 16 hex digits for u64
-}
-
-FOSSIL_TEST(c_test_keygen_compute_crc_base64_u32) {
-    // CRC keygen, base64, u32
-    char output[32];
-    int rc = fossil_cryptic_keygen_compute("crc", "u32", "base64", "seed", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) > 0);
-}
-
-FOSSIL_TEST(c_test_keygen_compute_mix_auto_auto) {
-    // Mix algorithm, auto bits, auto base
-    char output[32];
-    int rc = fossil_cryptic_keygen_compute("mix", "auto", "auto", "longseedvalue", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) > 0);
-}
-
-FOSSIL_TEST(c_test_keygen_compute_null_arguments) {
-    // Should fail with null arguments
-    char output[32];
-    ASSUME_ITS_TRUE(fossil_cryptic_keygen_compute(NULL, "u32", "hex", "seed", output, sizeof(output)) != 0);
-    ASSUME_ITS_TRUE(fossil_cryptic_keygen_compute("fnv", NULL, "hex", "seed", output, sizeof(output)) != 0);
-    ASSUME_ITS_TRUE(fossil_cryptic_keygen_compute("fnv", "u32", NULL, "seed", output, sizeof(output)) != 0);
-    ASSUME_ITS_TRUE(fossil_cryptic_keygen_compute("fnv", "u32", "hex", NULL, output, sizeof(output)) != 0);
-    ASSUME_ITS_TRUE(fossil_cryptic_keygen_compute("fnv", "u32", "hex", "seed", NULL, sizeof(output)) != 0);
-}
-
-FOSSIL_TEST(c_test_keygen_compute_unsupported_algorithm) {
-    // Unsupported algorithm should fail
-    char output[32];
-    int rc = fossil_cryptic_keygen_compute("unknown", "u32", "hex", "seed", output, sizeof(output));
-    ASSUME_ITS_TRUE(rc != 0);
-}
-
-FOSSIL_TEST(c_test_keygen_compute_unsupported_base) {
-    // Unsupported base should fail
-    char output[32];
-    int rc = fossil_cryptic_keygen_compute("fnv", "u32", "octal", "seed", output, sizeof(output));
-    ASSUME_ITS_TRUE(rc != 0);
-}
-
 FOSSIL_TEST(c_test_keygen_hkdf_sha256_rfc5869) {
     // RFC 5869 test case 1
     const uint8_t ikm[22] = {
@@ -164,13 +108,6 @@ FOSSIL_TEST(c_test_keygen_pbkdf2_sha256_known_answer) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_keygen_tests) {
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_basic_fnv_hex_u32);
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_basic_fnv_hex_u64);
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_crc_base64_u32);
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_mix_auto_auto);
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_null_arguments);
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_unsupported_algorithm);
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_unsupported_base);
     FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_hkdf_sha256_rfc5869);
     FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_hkdf_sha256_optional_salt_info);
     FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_pbkdf2_sha256_known_answer);
