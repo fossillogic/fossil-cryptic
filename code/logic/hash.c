@@ -23,333 +23,30 @@
  * -----------------------------------------------------------------------------
  */
 #include "fossil/cryptic/hash.h"
+#include "fossil/cryptic/util.h"
 #include <string.h>
-#include <stdio.h>
 
-// =======================================================
-// Helper: Bit extraction and conversion
-// =======================================================
-static void u32_to_hex(uint32_t val, char* out, size_t len) {
-    snprintf(out, len, "%08x", val);
+/* ============================================================
+ * BLAKE2b (from original, cleaned)
+ * ============================================================ */
+
+static uint64_t blake2b_rotr64(uint64_t v, unsigned int n) {
+    return (v >> n) | (v << (64 - n));
 }
 
-static void u64_to_hex(uint64_t val, char* out, size_t len) {
-    snprintf(out, len, "%016llx", (unsigned long long)val);
+static uint64_t blake2b_load64(const uint8_t *p) {
+    uint64_t v = 0;
+    for (unsigned i = 0; i < 8; i++)
+        v |= (uint64_t)p[i] << (8 * i);
+    return v;
 }
 
-// Convert uint32_t to decimal string
-static void u32_to_dec(uint32_t val, char* out, size_t len) {
-    snprintf(out, len, "%u", val);
+static void blake2b_store64(uint8_t *p, uint64_t v) {
+    for (unsigned i = 0; i < 8; i++)
+        p[i] = (uint8_t)(v >> (8 * i));
 }
 
-// Convert uint64_t to decimal string
-static void u64_to_dec(uint64_t val, char* out, size_t len) {
-    snprintf(out, len, "%llu", (unsigned long long)val);
-}
-
-// Convert uint32_t to octal string
-static void u32_to_oct(uint32_t val, char* out, size_t len) {
-    snprintf(out, len, "%o", val);
-}
-
-// Convert uint64_t to octal string
-static void u64_to_oct(uint64_t val, char* out, size_t len) {
-    snprintf(out, len, "%llo", (unsigned long long)val);
-}
-
-// Convert uint32_t to binary string
-static void u32_to_bin(uint32_t val, char* out, size_t len) {
-    size_t i = 0;
-    for (int bit = 31; bit >= 0 && i + 1 < len; --bit) {
-        out[i++] = (val & (1u << bit)) ? '1' : '0';
-    }
-    out[i] = '\0';
-}
-
-// Convert uint64_t to binary string
-static void u64_to_bin(uint64_t val, char* out, size_t len) {
-    size_t i = 0;
-    for (int bit = 63; bit >= 0 && i + 1 < len; --bit) {
-        out[i++] = (val & (1ull << bit)) ? '1' : '0';
-    }
-    out[i] = '\0';
-}
-
-// =======================================================
-// Simple Hash Functions
-// =======================================================
-
-// CRC32 (standard polynomial)
-static uint32_t crc32(const void* data, size_t len) {
-    const uint8_t* bytes = (const uint8_t*)data;
-    uint32_t crc = 0xFFFFFFFF;
-    for (size_t i = 0; i < len; i++) {
-        crc ^= bytes[i];
-        for (int j = 0; j < 8; j++)
-            crc = (crc >> 1) ^ (0xEDB88320 & -(crc & 1));
-    }
-    return ~crc;
-}
-
-static uint64_t crc64(const void* data, size_t len) {
-    const uint8_t* bytes = (const uint8_t*)data;
-    uint64_t crc = 0xFFFFFFFFFFFFFFFFull;
-    for (size_t i = 0; i < len; i++) {
-        crc ^= bytes[i];
-        for (int j = 0; j < 8; j++)
-            crc = (crc >> 1) ^ (0xC96C5795D7870F42ull & -(crc & 1));
-    }
-    return ~crc;
-}
-
-// FNV-1a 32-bit
-static uint32_t fnv32(const void* data, size_t len) {
-    const uint8_t* bytes = (const uint8_t*)data;
-    uint32_t hash = 2166136261u;
-    for (size_t i = 0; i < len; i++) {
-        hash ^= bytes[i];
-        hash *= 16777619u;
-    }
-    return hash;
-}
-
-// FNV-1a 64-bit
-static uint64_t fnv64(const void* data, size_t len) {
-    const uint8_t* bytes = (const uint8_t*)data;
-    uint64_t hash = 14695981039346656037ull;
-    for (size_t i = 0; i < len; i++) {
-        hash ^= bytes[i];
-        hash *= 1099511628211ull;
-    }
-    return hash;
-}
-
-// DJB2
-static uint32_t djb2(const void* data, size_t len) {
-    const uint8_t* bytes = (const uint8_t*)data;
-    uint32_t hash = 5381;
-    for (size_t i = 0; i < len; i++)
-        hash = ((hash << 5) + hash) + bytes[i]; // hash * 33 + c
-    return hash;
-}
-
-// SDBM
-static uint32_t sdbm(const void* data, size_t len) {
-    const uint8_t* bytes = (const uint8_t*)data;
-    uint32_t hash = 0;
-    for (size_t i = 0; i < len; i++)
-        hash = bytes[i] + (hash << 6) + (hash << 16) - hash;
-    return hash;
-}
-
-// XOR simple
-static uint32_t xor_hash(const void* data, size_t len) {
-    const uint8_t* bytes = (const uint8_t*)data;
-    uint32_t hash = 0;
-    for (size_t i = 0; i < len; i++)
-        hash ^= bytes[i];
-    return hash;
-}
-
-// =======================================================
-// Advanced Hash Functions
-// =======================================================
-
-// MurmurHash3 32-bit
-static uint32_t murmur3_32(const void* key, size_t len, uint32_t seed) {
-    const uint8_t* data = (const uint8_t*)key;
-    const int nblocks = len / 4;
-    uint32_t h1 = seed;
-
-    const uint32_t c1 = 0xcc9e2d51;
-    const uint32_t c2 = 0x1b873593;
-
-    // body
-    const uint32_t* blocks = (const uint32_t*)(data + nblocks * 4);
-    for (int i = -nblocks; i; i++) {
-        uint32_t k1 = blocks[i];
-        k1 *= c1;
-        k1 = (k1 << 15) | (k1 >> (32 - 15));
-        k1 *= c2;
-
-        h1 ^= k1;
-        h1 = (h1 << 13) | (h1 >> (32 - 13));
-        h1 = h1 * 5 + 0xe6546b64;
-    }
-
-    // tail
-    const uint8_t* tail = (const uint8_t*)(data + nblocks * 4);
-    uint32_t k1 = 0;
-    switch (len & 3) {
-        case 3: k1 ^= tail[2] << 16; /* fall through */
-        case 2: k1 ^= tail[1] << 8;  /* fall through */
-        case 1: k1 ^= tail[0];
-                k1 *= c1;
-                k1 = (k1 << 15) | (k1 >> (32 - 15));
-                k1 *= c2;
-                h1 ^= k1;
-        break;
-    }
-
-    // finalization
-    h1 ^= len;
-    h1 ^= (h1 >> 16);
-    h1 *= 0x85ebca6b;
-    h1 ^= (h1 >> 13);
-    h1 *= 0xc2b2ae35;
-    h1 ^= (h1 >> 16);
-
-    return h1;
-}
-
-// MurmurHash3 64-bit (returns lower 64 bits of MurmurHash3_x64_128)
-static uint64_t murmur3_64(const void* key, size_t len, uint32_t seed) {
-    const uint8_t* data = (const uint8_t*)key;
-    const int nblocks = len / 16;
-    uint64_t h1 = seed;
-    uint64_t h2 = seed;
-
-    const uint64_t c1 = 0x87c37b91114253d5ull;
-    const uint64_t c2 = 0x4cf5ad432745937full;
-
-    // body
-    const uint64_t* blocks = (const uint64_t*)(data);
-    for (int i = 0; i < nblocks; i++) {
-        uint64_t k1 = blocks[i * 2 + 0];
-        uint64_t k2 = blocks[i * 2 + 1];
-
-        k1 *= c1; k1 = (k1 << 31) | (k1 >> (64 - 31)); k1 *= c2; h1 ^= k1;
-        h1 = (h1 << 27) | (h1 >> (64 - 27)); h1 += h2; h1 = h1 * 5 + 0x52dce729;
-
-        k2 *= c2; k2 = (k2 << 33) | (k2 >> (64 - 33)); k2 *= c1; h2 ^= k2;
-        h2 = (h2 << 31) | (h2 >> (64 - 31)); h2 += h1; h2 = h2 * 5 + 0x38495ab5;
-    }
-
-    // tail
-    const uint8_t* tail = (const uint8_t*)(data + nblocks * 16);
-    uint64_t k1 = 0, k2 = 0;
-    switch (len & 15) {
-        case 15: k2 ^= ((uint64_t)tail[14]) << 48; /* fall through */
-        case 14: k2 ^= ((uint64_t)tail[13]) << 40; /* fall through */
-        case 13: k2 ^= ((uint64_t)tail[12]) << 32; /* fall through */
-        case 12: k2 ^= ((uint64_t)tail[11]) << 24; /* fall through */
-        case 11: k2 ^= ((uint64_t)tail[10]) << 16; /* fall through */
-        case 10: k2 ^= ((uint64_t)tail[9]) << 8;   /* fall through */
-        case 9:  k2 ^= ((uint64_t)tail[8]) << 0;
-                 k2 *= c2; k2 = (k2 << 33) | (k2 >> (64 - 33)); k2 *= c1; h2 ^= k2;
-            break;
-        case 8:  k1 ^= ((uint64_t)tail[7]) << 56; /* fall through */
-        case 7:  k1 ^= ((uint64_t)tail[6]) << 48; /* fall through */
-        case 6:  k1 ^= ((uint64_t)tail[5]) << 40; /* fall through */
-        case 5:  k1 ^= ((uint64_t)tail[4]) << 32; /* fall through */
-        case 4:  k1 ^= ((uint64_t)tail[3]) << 24; /* fall through */
-        case 3:  k1 ^= ((uint64_t)tail[2]) << 16; /* fall through */
-        case 2:  k1 ^= ((uint64_t)tail[1]) << 8;  /* fall through */
-        case 1:  k1 ^= ((uint64_t)tail[0]) << 0;
-                 k1 *= c1; k1 = (k1 << 31) | (k1 >> (64 - 31)); k1 *= c2; h1 ^= k1;
-            break;
-    }
-
-    // finalization
-    h1 ^= len;
-    h2 ^= len;
-    h1 += h2;
-    h2 += h1;
-
-    // fmix64
-    h1 ^= h1 >> 33;
-    h1 *= 0xff51afd7ed558ccdull;
-    h1 ^= h1 >> 33;
-    h1 *= 0xc4ceb9fe1a85ec53ull;
-    h1 ^= h1 >> 33;
-
-    h2 ^= h2 >> 33;
-    h2 *= 0xff51afd7ed558ccdull;
-    h2 ^= h2 >> 33;
-    h2 *= 0xc4ceb9fe1a85ec53ull;
-    h2 ^= h2 >> 33;
-
-    h1 += h2;
-    // Only return h1 for 64-bit hash
-    return h1;
-}
-
-// CityHash32 (simplified, not full Google implementation)
-static uint32_t cityhash32(const void* data, size_t len) {
-    const uint8_t* s = (const uint8_t*)data;
-    uint32_t h = (uint32_t)len, g, f;
-    if (len == 0) return 0;
-    h += s[0];
-    for (size_t i = 1; i < len; ++i) {
-        g = f = h;
-        g <<= 5; f >>= 2;
-        h ^= (g + f + s[i]);
-    }
-    return h;
-}
-
-// CityHash64 (simplified, not full Google implementation)
-static uint64_t cityhash64(const void* data, size_t len) {
-    const uint8_t* s = (const uint8_t*)data;
-    uint64_t h = (uint64_t)len, g, f;
-    if (len == 0) return 0;
-    h += s[0];
-    for (size_t i = 1; i < len; ++i) {
-        g = f = h;
-        g <<= 7; f >>= 3;
-        h ^= (g + f + s[i]);
-    }
-    return h;
-}
-
-// XXHash32 (very simplified, not optimized)
-static uint32_t xxhash32(const void* data, size_t len, uint32_t seed) {
-    const uint8_t* p = (const uint8_t*)data;
-    uint32_t h = seed + (uint32_t)len;
-    for (size_t i = 0; i < len; ++i) {
-        h += p[i] * 374761393U;
-        h = (h << 13) | (h >> (32 - 13));
-        h *= 2654435761U;
-    }
-    h ^= h >> 15;
-    h *= 2246822519U;
-    h ^= h >> 13;
-    h *= 3266489917U;
-    h ^= h >> 16;
-    return h;
-}
-
-// XXHash64 (very simplified, not optimized)
-static uint64_t xxhash64(const void* data, size_t len, uint64_t seed) {
-    const uint8_t* p = (const uint8_t*)data;
-    uint64_t h = seed + (uint64_t)len;
-    for (size_t i = 0; i < len; ++i) {
-        h += p[i] * 11400714785074694791ull;
-        h = (h << 31) | (h >> (64 - 31));
-        h *= 14029467366897019727ull;
-    }
-    h ^= h >> 33;
-    h *= 1609587929392839161ull;
-    h ^= h >> 29;
-    h *= 9650029242287828579ull;
-    h ^= h >> 32;
-    return h;
-}
-
-// BLAKE2b-512, as specified by RFC 7693.
-static uint64_t blake2b_rotr64(uint64_t value, unsigned int shift) {
-    return (value >> shift) | (value << (64 - shift));
-}
-
-static uint64_t blake2b_load64(const uint8_t* input) {
-    uint64_t value = 0;
-    for (unsigned int i = 0; i < 8; ++i)
-        value |= (uint64_t)input[i] << (8 * i);
-    return value;
-}
-
-static void blake2b_g(uint64_t v[16], int a, int b, int c, int d,
-                      uint64_t x, uint64_t y) {
+static void blake2b_g(uint64_t *v, int a, int b, int c, int d, uint64_t x, uint64_t y) {
     v[a] = v[a] + v[b] + x;
     v[d] = blake2b_rotr64(v[d] ^ v[a], 32);
     v[c] += v[d];
@@ -360,13 +57,12 @@ static void blake2b_g(uint64_t v[16], int a, int b, int c, int d,
     v[b] = blake2b_rotr64(v[b] ^ v[c], 63);
 }
 
-static void blake2b_compress(uint64_t h[8], const uint8_t block[128],
-                             uint64_t count, int last) {
-    static const uint64_t iv[8] = {
-        0x6a09e667f3bcc908ull, 0xbb67ae8584caa73bull,
-        0x3c6ef372fe94f82bull, 0xa54ff53a5f1d36f1ull,
-        0x510e527fade682d1ull, 0x9b05688c2b3e6c1full,
-        0x1f83d9abfb41bd6bull, 0x5be0cd19137e2179ull
+static void blake2b_compress(uint64_t *h, const uint8_t block[128], uint64_t t, int last) {
+    static const uint64_t IV[8] = {
+        0x6a09e667f3bcc908ULL, 0xbb67ae8584caa73bULL,
+        0x3c6ef372fe94f82bULL, 0xa54ff53a5f1d36f1ULL,
+        0x510e527fade682d1ULL, 0x9b05688c2b3e6c1fULL,
+        0x1f83d9abfb41bd6bULL, 0x5be0cd19137e2179ULL
     };
     static const uint8_t sigma[12][16] = {
         { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15},
@@ -382,178 +78,241 @@ static void blake2b_compress(uint64_t h[8], const uint8_t block[128],
         { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15},
         {14,10, 4, 8, 9,15,13, 6, 1,12, 0, 2,11, 7, 5, 3}
     };
-    uint64_t m[16], v[16];
 
-    for (int i = 0; i < 16; ++i)
+    uint64_t m[16], v[16];
+    for (int i = 0; i < 16; i++)
         m[i] = blake2b_load64(block + i * 8);
-    for (int i = 0; i < 8; ++i) {
-        v[i] = h[i];
-        v[i + 8] = iv[i];
+
+    for (int i = 0; i < 8; i++) {
+        v[i]     = h[i];
+        v[i + 8] = IV[i];
     }
-    v[12] ^= count;
+    v[12] ^= t;
     if (last)
         v[14] = ~v[14];
 
-    for (int round = 0; round < 12; ++round) {
-        const uint8_t* s = sigma[round];
-        blake2b_g(v, 0, 4, 8,12, m[s[0]],  m[s[1]]);
-        blake2b_g(v, 1, 5, 9,13, m[s[2]],  m[s[3]]);
-        blake2b_g(v, 2, 6,10,14, m[s[4]],  m[s[5]]);
-        blake2b_g(v, 3, 7,11,15, m[s[6]],  m[s[7]]);
-        blake2b_g(v, 0, 5,10,15, m[s[8]],  m[s[9]]);
+    for (int r = 0; r < 12; r++) {
+        const uint8_t *s = sigma[r];
+        blake2b_g(v, 0, 4, 8,12, m[s[ 0]], m[s[ 1]]);
+        blake2b_g(v, 1, 5, 9,13, m[s[ 2]], m[s[ 3]]);
+        blake2b_g(v, 2, 6,10,14, m[s[ 4]], m[s[ 5]]);
+        blake2b_g(v, 3, 7,11,15, m[s[ 6]], m[s[ 7]]);
+        blake2b_g(v, 0, 5,10,15, m[s[ 8]], m[s[ 9]]);
         blake2b_g(v, 1, 6,11,12, m[s[10]], m[s[11]]);
         blake2b_g(v, 2, 7, 8,13, m[s[12]], m[s[13]]);
         blake2b_g(v, 3, 4, 9,14, m[s[14]], m[s[15]]);
     }
 
-    for (int i = 0; i < 8; ++i)
+    for (int i = 0; i < 8; i++)
         h[i] ^= v[i] ^ v[i + 8];
 }
 
-static void blake2b_512(const void* input, size_t len, uint8_t digest[64]) {
-    static const uint64_t iv[8] = {
-        0x6a09e667f3bcc908ull, 0xbb67ae8584caa73bull,
-        0x3c6ef372fe94f82bull, 0xa54ff53a5f1d36f1ull,
-        0x510e527fade682d1ull, 0x9b05688c2b3e6c1full,
-        0x1f83d9abfb41bd6bull, 0x5be0cd19137e2179ull
+static int blake2b_generic(const void *in, size_t in_len, uint8_t *out, size_t out_len) {
+    if (!out || out_len == 0 || out_len > 64) return -1;
+    if (in_len && !in) return -1;
+
+    static const uint64_t IV[8] = {
+        0x6a09e667f3bcc908ULL, 0xbb67ae8584caa73bULL,
+        0x3c6ef372fe94f82bULL, 0xa54ff53a5f1d36f1ULL,
+        0x510e527fade682d1ULL, 0x9b05688c2b3e6c1fULL,
+        0x1f83d9abfb41bd6bULL, 0x5be0cd19137e2179ULL
     };
+
     uint64_t h[8];
-    const uint8_t* data = (const uint8_t*)input;
-    uint8_t block[128] = {0};
+    memcpy(h, IV, sizeof(h));
+    h[0] ^= 0x01010000ULL ^ (uint64_t)out_len; /* unkeyed, outlen bytes */
+
+    const uint8_t *data = (const uint8_t *)in;
+    uint8_t block[128];
     size_t offset = 0;
 
-    memcpy(h, iv, sizeof(h));
-    h[0] ^= 0x01010040ull; // unkeyed, 64-byte digest
-    while (len - offset > sizeof(block)) {
-        blake2b_compress(h, data + offset, (uint64_t)(offset + sizeof(block)), 0);
-        offset += sizeof(block);
+    while (in_len - offset > 128) {
+        blake2b_compress(h, data + offset, (uint64_t)(offset + 128), 0);
+        offset += 128;
     }
 
-    size_t remaining = len - offset;
-    if (remaining)
-        memcpy(block, data + offset, remaining);
-    blake2b_compress(h, block, (uint64_t)len, 1);
-    for (int i = 0; i < 8; ++i) {
-        for (int j = 0; j < 8; ++j)
-            digest[i * 8 + j] = (uint8_t)(h[i] >> (8 * j));
-    }
+    size_t rem = in_len - offset;
+    memset(block, 0, 128);
+    if (rem)
+        memcpy(block, data + offset, rem);
+
+    blake2b_compress(h, block, (uint64_t)in_len, 1);
+
+    for (size_t i = 0; i < out_len; i++)
+        out[i] = (uint8_t)(h[i / 8] >> (8 * (i % 8)));
+
+    fossil_cryptic_util_wipe(h, sizeof(h));
+    fossil_cryptic_util_wipe(block, sizeof(block));
+    return 0;
 }
 
-// =======================================================
-// Main Function
-// =======================================================
-int fossil_cryptic_hash_compute(
-    const char* algorithm,
-    const char* bits,
-    const char* base,
-    char* output, size_t output_len,
-    const void* input, size_t input_len
-) {
-    if (!algorithm || !bits || !base || !output || (!input && input_len != 0)) return -1;
+int fossil_cryptic_hash_blake2b_512(const void *in, size_t in_len, uint8_t out[64]) {
+    return blake2b_generic(in, in_len, out, 64);
+}
 
-    // The default and explicit BLAKE2b path return the full 512-bit digest.
-    if (strcmp(algorithm, "auto") == 0 || strcmp(algorithm, "blake2b") == 0) {
-        if (strcmp(base, "hex") != 0 && strcmp(base, "auto") != 0) return -4;
-        if (output_len < 129) return -5;
+int fossil_cryptic_hash_blake2b_256(const void *in, size_t in_len, uint8_t out[32]) {
+    return blake2b_generic(in, in_len, out, 32);
+}
 
-        static const char hex[] = "0123456789abcdef";
-        uint8_t digest[64];
-        blake2b_512(input, input_len, digest);
-        for (size_t i = 0; i < sizeof(digest); ++i) {
-            output[i * 2] = hex[digest[i] >> 4];
-            output[i * 2 + 1] = hex[digest[i] & 0x0f];
-        }
-        output[128] = '\0';
-        return 0;
-    }
+/* ============================================================
+ * SHA-256 (clean portable implementation)
+ * ============================================================ */
 
-    int use_u64 = 0;
-    if (strcmp(bits, "u64") == 0) use_u64 = 1;
-    else if (strcmp(bits, "u32") == 0) use_u64 = 0;
-    else if (strcmp(bits, "auto") == 0) use_u64 = 0; // default u32
-    else return -2; // unsupported bits
+static const uint32_t K256[64] = {
+    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+};
 
-    // ===================================================
-    // Select Algorithm
-    // ===================================================
-    uint32_t hash32 = 0;
-    uint64_t hash64 = 0;
+#define ROTR32(x,n) (((x) >> (n)) | ((x) << (32 - (n))))
+#define CH(x,y,z)  (((x) & (y)) ^ (~(x) & (z)))
+#define MAJ(x,y,z) (((x) & (y)) ^ ((x) & (z)) ^ ((y) & (z)))
+#define EP0(x)     (ROTR32(x,2) ^ ROTR32(x,13) ^ ROTR32(x,22))
+#define EP1(x)     (ROTR32(x,6) ^ ROTR32(x,11) ^ ROTR32(x,25))
+#define SIG0(x)    (ROTR32(x,7) ^ ROTR32(x,18) ^ ((x) >> 3))
+#define SIG1(x)    (ROTR32(x,17) ^ ROTR32(x,19) ^ ((x) >> 10))
 
-    if (strcmp(algorithm, "crc32") == 0) {
-        hash32 = crc32(input, input_len);
-        if (use_u64) hash64 = (uint64_t)hash32;
+static void sha256_transform(uint32_t state[8], const uint8_t block[64]) {
+    uint32_t a,b,c,d,e,f,g,h,t1,t2,w[64];
+
+    for (int i = 0; i < 16; i++) {
+        w[i] = ((uint32_t)block[i*4] << 24) | ((uint32_t)block[i*4+1] << 16) |
+               ((uint32_t)block[i*4+2] <<  8) | (uint32_t)block[i*4+3];
     }
-    else if (strcmp(algorithm, "crc64") == 0) {
-        hash64 = crc64(input, input_len);
-        if (!use_u64) hash32 = (uint32_t)hash64;
-    }
-    else if (strcmp(algorithm, "fnv32") == 0) {
-        hash32 = fnv32(input, input_len);
-        if (use_u64) hash64 = (uint64_t)hash32;
-    }
-    else if (strcmp(algorithm, "fnv64") == 0) {
-        hash64 = fnv64(input, input_len);
-        if (!use_u64) hash32 = (uint32_t)hash64;
-    }
-    else if (strcmp(algorithm, "djb2") == 0) {
-        hash32 = djb2(input, input_len);
-        if (use_u64) hash64 = (uint64_t)hash32;
-    }
-    else if (strcmp(algorithm, "sdbm") == 0) {
-        hash32 = sdbm(input, input_len);
-        if (use_u64) hash64 = (uint64_t)hash32;
-    }
-    else if (strcmp(algorithm, "xor") == 0) {
-        hash32 = xor_hash(input, input_len);
-        if (use_u64) hash64 = (uint64_t)hash32;
-    }
-    // Advanced hash functions
-    else if (strcmp(algorithm, "murmur3_32") == 0) {
-        hash32 = murmur3_32(input, input_len, 0);
-        if (use_u64) hash64 = (uint64_t)hash32;
-    }
-    else if (strcmp(algorithm, "murmur3_64") == 0) {
-        hash64 = murmur3_64(input, input_len, 0);
-        if (!use_u64) hash32 = (uint32_t)hash64;
-    }
-    else if (strcmp(algorithm, "cityhash32") == 0) {
-        hash32 = cityhash32(input, input_len);
-        if (use_u64) hash64 = (uint64_t)hash32;
-    }
-    else if (strcmp(algorithm, "cityhash64") == 0) {
-        hash64 = cityhash64(input, input_len);
-        if (!use_u64) hash32 = (uint32_t)hash64;
-    }
-    else if (strcmp(algorithm, "xxhash32") == 0) {
-        hash32 = xxhash32(input, input_len, 0);
-        if (use_u64) hash64 = (uint64_t)hash32;
-    }
-    else if (strcmp(algorithm, "xxhash64") == 0) {
-        hash64 = xxhash64(input, input_len, 0);
-        if (!use_u64) hash32 = (uint32_t)hash64;
-    }
-    else {
-        return -3; // unknown algorithm
+    for (int i = 16; i < 64; i++)
+        w[i] = SIG1(w[i-2]) + w[i-7] + SIG0(w[i-15]) + w[i-16];
+
+    a = state[0]; b = state[1]; c = state[2]; d = state[3];
+    e = state[4]; f = state[5]; g = state[6]; h = state[7];
+
+    for (int i = 0; i < 64; i++) {
+        t1 = h + EP1(e) + CH(e,f,g) + K256[i] + w[i];
+        t2 = EP0(a) + MAJ(a,b,c);
+        h = g; g = f; f = e; e = d + t1;
+        d = c; c = b; b = a; a = t1 + t2;
     }
 
-    // ===================================================
-    // Select Output Base
-    // ===================================================
-    if (strcmp(base, "hex") == 0 || strcmp(base, "auto") == 0) {
-        if (use_u64) u64_to_hex(hash64, output, output_len);
-        else u32_to_hex(hash32, output, output_len);
-    } else if (strcmp(base, "dec") == 0) {
-        if (use_u64) u64_to_dec(hash64, output, output_len);
-        else u32_to_dec(hash32, output, output_len);
-    } else if (strcmp(base, "oct") == 0) {
-        if (use_u64) u64_to_oct(hash64, output, output_len);
-        else u32_to_oct(hash32, output, output_len);
-    } else if (strcmp(base, "bin") == 0) {
-        if (use_u64) u64_to_bin(hash64, output, output_len);
-        else u32_to_bin(hash32, output, output_len);
-    } else {
-        return -4; // unsupported base
+    state[0] += a; state[1] += b; state[2] += c; state[3] += d;
+    state[4] += e; state[5] += f; state[6] += g; state[7] += h;
+}
+
+int fossil_cryptic_hash_sha256(const void *in, size_t in_len, uint8_t out[32]) {
+    if (!out) return -1;
+    if (in_len && !in) return -1;
+
+    uint32_t state[8] = {
+        0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+        0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+    };
+
+    const uint8_t *data = (const uint8_t *)in;
+    uint8_t block[64];
+    uint64_t bitlen = (uint64_t)in_len * 8;
+    size_t offset = 0;
+
+    while (in_len - offset >= 64) {
+        sha256_transform(state, data + offset);
+        offset += 64;
     }
 
+    size_t rem = in_len - offset;
+    memset(block, 0, 64);
+    if (rem) memcpy(block, data + offset, rem);
+    block[rem] = 0x80;
+
+    if (rem >= 56) {
+        sha256_transform(state, block);
+        memset(block, 0, 64);
+    }
+
+    /* append length in bits (big-endian) */
+    for (int i = 0; i < 8; i++)
+        block[63 - i] = (uint8_t)(bitlen >> (8 * i));
+
+    sha256_transform(state, block);
+
+    for (int i = 0; i < 8; i++) {
+        out[i*4    ] = (uint8_t)(state[i] >> 24);
+        out[i*4 + 1] = (uint8_t)(state[i] >> 16);
+        out[i*4 + 2] = (uint8_t)(state[i] >>  8);
+        out[i*4 + 3] = (uint8_t)(state[i]);
+    }
+
+    fossil_cryptic_util_wipe(state, sizeof(state));
+    fossil_cryptic_util_wipe(block, sizeof(block));
     return 0;
+}
+
+/* SHA-512 can be added later following the same pattern */
+
+int fossil_cryptic_hash_sha512(const void *in, size_t in_len, uint8_t out[64]) {
+    (void)in; (void)in_len; (void)out;
+    return -1; /* placeholder – implement when needed */
+}
+
+/* ============================================================
+ * Non-cryptographic hashes
+ * ============================================================ */
+
+uint32_t fossil_cryptic_hash_crc32(const void *in, size_t in_len) {
+    const uint8_t *p = (const uint8_t *)in;
+    uint32_t crc = 0xFFFFFFFFu;
+    for (size_t i = 0; i < in_len; i++) {
+        crc ^= p[i];
+        for (int j = 0; j < 8; j++)
+            crc = (crc >> 1) ^ (0xEDB88320u & -(crc & 1u));
+    }
+    return ~crc;
+}
+
+uint64_t fossil_cryptic_hash_crc64(const void *in, size_t in_len) {
+    const uint8_t *p = (const uint8_t *)in;
+    uint64_t crc = 0xFFFFFFFFFFFFFFFFull;
+    for (size_t i = 0; i < in_len; i++) {
+        crc ^= p[i];
+        for (int j = 0; j < 8; j++)
+            crc = (crc >> 1) ^ (0xC96C5795D7870F42ull & -(int64_t)(crc & 1));
+    }
+    return ~crc;
+}
+
+uint32_t fossil_cryptic_hash_fnv32(const void *in, size_t in_len) {
+    const uint8_t *p = (const uint8_t *)in;
+    uint32_t h = 2166136261u;
+    for (size_t i = 0; i < in_len; i++) {
+        h ^= p[i];
+        h *= 16777619u;
+    }
+    return h;
+}
+
+uint64_t fossil_cryptic_hash_fnv64(const void *in, size_t in_len) {
+    const uint8_t *p = (const uint8_t *)in;
+    uint64_t h = 14695981039346656037ull;
+    for (size_t i = 0; i < in_len; i++) {
+        h ^= p[i];
+        h *= 1099511628211ull;
+    }
+    return h;
+}
+
+uint32_t fossil_cryptic_hash_djb2(const void *in, size_t in_len) {
+    const uint8_t *p = (const uint8_t *)in;
+    uint32_t h = 5381u;
+    for (size_t i = 0; i < in_len; i++)
+        h = ((h << 5) + h) + p[i];
+    return h;
+}
+
+uint32_t fossil_cryptic_hash_sdbm(const void *in, size_t in_len) {
+    const uint8_t *p = (const uint8_t *)in;
+    uint32_t h = 0;
+    for (size_t i = 0; i < in_len; i++)
+        h = p[i] + (h << 6) + (h << 16) - h;
+    return h;
 }

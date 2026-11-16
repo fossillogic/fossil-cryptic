@@ -23,24 +23,10 @@
  * -----------------------------------------------------------------------------
  */
 #include "fossil/cryptic/aes.h"
+#include "fossil/cryptic/util.h"
 #include <string.h>
 
-/* ---------- wipe / verify ---------- */
-
-void fossil_cryptic_aes_gcm_wipe(void *buf, size_t len) {
-    volatile uint8_t *p = (volatile uint8_t *)buf;
-    while (len--) *p++ = 0;
-}
-
-int fossil_cryptic_aes_gcm_verify16(const uint8_t a[16], const uint8_t b[16]) {
-    uint8_t d = 0;
-    for (int i = 0; i < 16; i++)
-        d |= a[i] ^ b[i];
-    /* Use unsigned arithmetic to avoid relying on signed right-shift behavior. */
-    return (int)(((uint32_t)d - 1U) >> 31) - 1; /* 0 equal, -1 differ */
-}
-
-/* ---------- AES-256 ---------- */
+/* ---------- AES-256 core ---------- */
 
 static const uint8_t sbox[256] = {
     0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
@@ -65,9 +51,16 @@ static const uint8_t rcon[10] = {
     0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1b,0x36
 };
 
-static uint32_t rd_be(const uint8_t *p) {
+static uint32_t load_be32(const uint8_t *p) {
     return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) |
            ((uint32_t)p[2] <<  8) |  (uint32_t)p[3];
+}
+
+static void store_be32(uint8_t *p, uint32_t v) {
+    p[0] = (uint8_t)(v >> 24);
+    p[1] = (uint8_t)(v >> 16);
+    p[2] = (uint8_t)(v >>  8);
+    p[3] = (uint8_t)v;
 }
 
 static uint32_t sub_word(uint32_t w) {
@@ -81,13 +74,11 @@ static uint32_t rot_word(uint32_t w) {
     return (w << 8) | (w >> 24);
 }
 
-/* 15 round keys × 4 words = 60 words for AES-256 */
 static void aes256_key_expand(uint32_t rk[60], const uint8_t key[32]) {
-    int i;
-    for (i = 0; i < 8; i++)
-        rk[i] = rd_be(key + i * 4);
+    for (int i = 0; i < 8; i++)
+        rk[i] = load_be32(key + i * 4);
 
-    for (i = 8; i < 60; i++) {
+    for (int i = 8; i < 60; i++) {
         uint32_t t = rk[i - 1];
         if (i % 8 == 0)
             t = sub_word(rot_word(t)) ^ ((uint32_t)rcon[i / 8 - 1] << 24);
@@ -101,67 +92,47 @@ static uint8_t xtime(uint8_t x) {
     return (uint8_t)((x << 1) ^ ((x & 0x80) ? 0x1b : 0));
 }
 
-static uint8_t mul(uint8_t a, uint8_t b) {
-    uint8_t r = 0;
-    while (b) {
-        if (b & 1) r ^= a;
-        a = xtime(a);
-        b >>= 1;
-    }
-    return r;
-}
+static void aes256_encrypt_block(uint8_t out[16], const uint8_t in[16], const uint32_t rk[60]) {
+    uint8_t s[16];
 
-static void aes256_encrypt_block_correct(uint8_t out[16], const uint8_t in[16],
-                                         const uint32_t rk[60]) {
-    uint8_t s[16], t[16];
-    int r, i;
+    for (int i = 0; i < 16; i++)
+        s[i] = in[i] ^ ((rk[i / 4] >> (24 - 8 * (i % 4))) & 0xff);
 
-    for (i = 0; i < 16; i++)
-        s[i] = in[i] ^ ((rk[i/4] >> (24 - 8*(i%4))) & 0xff);
+    for (int r = 1; r <= 14; r++) {
+        uint8_t t[16];
+        for (int i = 0; i < 16; i++) t[i] = sbox[s[i]];
 
-    for (r = 1; r < 14; r++) {
-        for (i = 0; i < 16; i++) t[i] = sbox[s[i]];
-        s[0]=t[0];  s[1]=t[5];  s[2]=t[10]; s[3]=t[15];
-        s[4]=t[4];  s[5]=t[9];  s[6]=t[14]; s[7]=t[3];
-        s[8]=t[8];  s[9]=t[13]; s[10]=t[2]; s[11]=t[7];
-        s[12]=t[12];s[13]=t[1]; s[14]=t[6]; s[15]=t[11];
+        /* ShiftRows */
+        s[0] = t[0];  s[1] = t[5];  s[2] = t[10]; s[3] = t[15];
+        s[4] = t[4];  s[5] = t[9];  s[6] = t[14]; s[7] = t[3];
+        s[8] = t[8];  s[9] = t[13]; s[10]= t[2];  s[11]= t[7];
+        s[12]= t[12]; s[13]= t[1];  s[14]= t[6];  s[15]= t[11];
 
         if (r < 14) {
-            for (i = 0; i < 4; i++) {
-                uint8_t a=s[4*i], b=s[4*i+1], c=s[4*i+2], d=s[4*i+3];
-                t[4*i  ] = mul(a,2)^mul(b,3)^c^d;
-                t[4*i+1] = a^mul(b,2)^mul(c,3)^d;
-                t[4*i+2] = a^b^mul(c,2)^mul(d,3);
-                t[4*i+3] = mul(a,3)^b^c^mul(d,2);
+            /* MixColumns */
+            for (int i = 0; i < 4; i++) {
+                uint8_t a = s[4*i], b = s[4*i+1], c = s[4*i+2], d = s[4*i+3];
+                t[4*i  ] = xtime(a) ^ xtime(b) ^ b ^ c ^ d;
+                t[4*i+1] = a ^ xtime(b) ^ xtime(c) ^ c ^ d;
+                t[4*i+2] = a ^ b ^ xtime(c) ^ xtime(d) ^ d;
+                t[4*i+3] = xtime(a) ^ a ^ b ^ c ^ xtime(d);
             }
             memcpy(s, t, 16);
         }
-        for (i = 0; i < 16; i++)
-            s[i] ^= (rk[r*4 + i/4] >> (24 - 8*(i%4))) & 0xff;
+
+        for (int i = 0; i < 16; i++)
+            s[i] ^= (rk[r * 4 + i / 4] >> (24 - 8 * (i % 4))) & 0xff;
     }
 
-    /* Final round (no MixColumns) – already handled when r==14 would run
-       SubBytes+ShiftRows+AddRoundKey. Fix loop bound: */
-    /* Proper final round: */
-    for (i = 0; i < 16; i++) t[i] = sbox[s[i]];
-    s[0]=t[0];  s[1]=t[5];  s[2]=t[10]; s[3]=t[15];
-    s[4]=t[4];  s[5]=t[9];  s[6]=t[14]; s[7]=t[3];
-    s[8]=t[8];  s[9]=t[13]; s[10]=t[2]; s[11]=t[7];
-    s[12]=t[12];s[13]=t[1]; s[14]=t[6]; s[15]=t[11];
-    for (i = 0; i < 16; i++)
-        out[i] = s[i] ^ ((rk[56 + i/4] >> (24 - 8*(i%4))) & 0xff);
+    memcpy(out, s, 16);
 }
 
-/* Use only the corrected function going forward */
-#define aes_encrypt_block aes256_encrypt_block_correct
-
-/* ---------- GHASH / GCM ---------- */
+/* ---------- GHASH ---------- */
 
 static void xor16(uint8_t o[16], const uint8_t a[16], const uint8_t b[16]) {
     for (int i = 0; i < 16; i++) o[i] = a[i] ^ b[i];
 }
 
-/* GF(2^128) multiplication by H (right-shift style, bit-by-bit – clear, not fast) */
 static void ghash_mul(uint8_t x[16], const uint8_t h[16]) {
     uint8_t z[16] = {0};
     uint8_t v[16];
@@ -175,18 +146,16 @@ static void ghash_mul(uint8_t x[16], const uint8_t h[16]) {
             for (int k = 15; k > 0; k--)
                 v[k] = (uint8_t)((v[k] >> 1) | (v[k-1] << 7));
             v[0] >>= 1;
-            if (lsb)
-                v[0] ^= 0xe1;
+            if (lsb) v[0] ^= 0xe1;
         }
     }
     memcpy(x, z, 16);
 }
 
-static void ghash_update(uint8_t y[16], const uint8_t h[16],
-                         const uint8_t *data, size_t len) {
+static void ghash_update(uint8_t y[16], const uint8_t h[16], const uint8_t *data, size_t len) {
     uint8_t block[16];
     while (len > 0) {
-        size_t n = len < 16 ? len : 16;
+        size_t n = (len < 16) ? len : 16;
         memset(block, 0, 16);
         memcpy(block, data, n);
         xor16(y, y, block);
@@ -202,26 +171,27 @@ static void inc32(uint8_t ctr[16]) {
 }
 
 static void gctr(uint8_t *out, const uint8_t *in, size_t len,
-                 const uint32_t rk[60], uint8_t j0[16]) {
+                 const uint32_t rk[60], uint8_t j0[16])
+{
     uint8_t ctr[16], ks[16];
     memcpy(ctr, j0, 16);
 
     while (len > 0) {
-        size_t n = len < 16 ? len : 16;
-        aes_encrypt_block(ks, ctr, rk);
+        size_t n = (len < 16) ? len : 16;
+        aes256_encrypt_block(ks, ctr, rk);
         for (size_t i = 0; i < n; i++)
             out[i] = in[i] ^ ks[i];
         out += n; in += n; len -= n;
         inc32(ctr);
     }
-    fossil_cryptic_aes_gcm_wipe(ks, sizeof ks);
-    fossil_cryptic_aes_gcm_wipe(ctr, sizeof ctr);
+    fossil_cryptic_util_wipe(ks, sizeof(ks));
+    fossil_cryptic_util_wipe(ctr, sizeof(ctr));
 }
 
-/* Build J0 for 96-bit IV: IV || 0x00000001 */
 static void make_j0(uint8_t j0[16], const uint8_t nonce[12]) {
     memcpy(j0, nonce, 12);
-    j0[12] = 0; j0[13] = 0; j0[14] = 0; j0[15] = 1;
+    j0[12] = j0[13] = j0[14] = 0;
+    j0[15] = 1;
 }
 
 static void gcm_auth(uint8_t tag[16],
@@ -229,7 +199,8 @@ static void gcm_auth(uint8_t tag[16],
                      const uint8_t h[16],
                      const uint8_t j0[16],
                      const uint8_t *ad, size_t ad_len,
-                     const uint8_t *ct, size_t ct_len) {
+                     const uint8_t *ct, size_t ct_len)
+{
     uint8_t y[16] = {0};
     uint8_t len_block[16];
     uint8_t s[16];
@@ -237,7 +208,6 @@ static void gcm_auth(uint8_t tag[16],
     if (ad_len) ghash_update(y, h, ad, ad_len);
     if (ct_len) ghash_update(y, h, ct, ct_len);
 
-    /* lengths in bits, 64-bit big-endian each */
     memset(len_block, 0, 16);
     uint64_t ad_bits = (uint64_t)ad_len * 8;
     uint64_t ct_bits = (uint64_t)ct_len * 8;
@@ -248,79 +218,73 @@ static void gcm_auth(uint8_t tag[16],
     xor16(y, y, len_block);
     ghash_mul(y, h);
 
-    /* tag = GCTR(J0, S) with single block */
-    aes_encrypt_block(s, j0, rk);
+    aes256_encrypt_block(s, j0, rk);
     xor16(tag, s, y);
 
-    fossil_cryptic_aes_gcm_wipe(y, sizeof y);
-    fossil_cryptic_aes_gcm_wipe(s, sizeof s);
+    fossil_cryptic_util_wipe(y, sizeof(y));
+    fossil_cryptic_util_wipe(s, sizeof(s));
 }
 
-/* ---------- public API ---------- */
+/* ---------- Public API ---------- */
 
 int fossil_cryptic_aes_gcm_encrypt(
-    uint8_t       *ciphertext,
-    const uint8_t  key[32],
-    const uint8_t  nonce[12],
-    const uint8_t *ad,        size_t ad_len,
-    const uint8_t *plaintext, size_t text_len
-) {
-    uint32_t rk[60];
-    uint8_t h[16], j0[16], j0_enc[16], tag[16];
-
+    uint8_t *ciphertext,
+    const uint8_t key[32],
+    const uint8_t nonce[12],
+    const uint8_t *ad, size_t ad_len,
+    const uint8_t *plaintext, size_t text_len)
+{
     if (!ciphertext || !key || !nonce) return -1;
     if (text_len && !plaintext) return -1;
     if (ad_len && !ad) return -1;
 
+    uint32_t rk[60];
+    uint8_t h[16], j0[16], j0_enc[16], tag[16];
+
     aes256_key_expand(rk, key);
 
-    /* H = AES_K(0^128) */
     memset(h, 0, 16);
-    aes_encrypt_block(h, h, rk);
+    aes256_encrypt_block(h, h, rk);
 
     make_j0(j0, nonce);
-
-    /* C = GCTR(inc32(J0), P) */
     memcpy(j0_enc, j0, 16);
     inc32(j0_enc);
+
     if (text_len)
         gctr(ciphertext, plaintext, text_len, rk, j0_enc);
 
     gcm_auth(tag, rk, h, j0, ad, ad_len, ciphertext, text_len);
     memcpy(ciphertext + text_len, tag, 16);
 
-    fossil_cryptic_aes_gcm_wipe(rk, sizeof rk);
-    fossil_cryptic_aes_gcm_wipe(h, sizeof h);
-    fossil_cryptic_aes_gcm_wipe(j0, sizeof j0);
-    fossil_cryptic_aes_gcm_wipe(j0_enc, sizeof j0_enc);
-    fossil_cryptic_aes_gcm_wipe(tag, sizeof tag);
+    fossil_cryptic_util_wipe(rk, sizeof(rk));
+    fossil_cryptic_util_wipe(h, sizeof(h));
+    fossil_cryptic_util_wipe(j0, sizeof(j0));
+    fossil_cryptic_util_wipe(j0_enc, sizeof(j0_enc));
+    fossil_cryptic_util_wipe(tag, sizeof(tag));
     return 0;
 }
 
 int fossil_cryptic_aes_gcm_decrypt(
-    uint8_t       *plaintext,
-    const uint8_t  key[32],
-    const uint8_t  nonce[12],
-    const uint8_t *ad,         size_t ad_len,
-    const uint8_t *ciphertext, size_t text_len
-) {
-    uint32_t rk[60];
-    uint8_t h[16], j0[16], j0_enc[16], expect[16];
-    const uint8_t *tag;
-    int rc;
-
+    uint8_t *plaintext,
+    const uint8_t key[32],
+    const uint8_t nonce[12],
+    const uint8_t *ad, size_t ad_len,
+    const uint8_t *ciphertext, size_t text_len)
+{
     if (!plaintext || !key || !nonce || !ciphertext) return -1;
     if (ad_len && !ad) return -1;
 
-    tag = ciphertext + text_len;
+    uint32_t rk[60];
+    uint8_t h[16], j0[16], j0_enc[16], expect[16];
+    const uint8_t *tag = ciphertext + text_len;
 
     aes256_key_expand(rk, key);
     memset(h, 0, 16);
-    aes_encrypt_block(h, h, rk);
+    aes256_encrypt_block(h, h, rk);
     make_j0(j0, nonce);
 
     gcm_auth(expect, rk, h, j0, ad, ad_len, ciphertext, text_len);
-    rc = fossil_cryptic_aes_gcm_verify16(tag, expect);
+    int rc = fossil_cryptic_util_verify16(tag, expect);
 
     if (rc == 0 && text_len) {
         memcpy(j0_enc, j0, 16);
@@ -328,10 +292,10 @@ int fossil_cryptic_aes_gcm_decrypt(
         gctr(plaintext, ciphertext, text_len, rk, j0_enc);
     }
 
-    fossil_cryptic_aes_gcm_wipe(rk, sizeof rk);
-    fossil_cryptic_aes_gcm_wipe(h, sizeof h);
-    fossil_cryptic_aes_gcm_wipe(j0, sizeof j0);
-    fossil_cryptic_aes_gcm_wipe(j0_enc, sizeof j0_enc);
-    fossil_cryptic_aes_gcm_wipe(expect, sizeof expect);
+    fossil_cryptic_util_wipe(rk, sizeof(rk));
+    fossil_cryptic_util_wipe(h, sizeof(h));
+    fossil_cryptic_util_wipe(j0, sizeof(j0));
+    fossil_cryptic_util_wipe(j0_enc, sizeof(j0_enc));
+    fossil_cryptic_util_wipe(expect, sizeof(expect));
     return rc;
 }
