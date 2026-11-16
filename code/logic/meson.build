@@ -4,6 +4,7 @@ subdir('fossil')
 
 fossil_cryptic_lib = library('fossil_cryptic',
     files(
+        'util.c',
         'hash.c',
         'auth.c',
         'cipher.c',
