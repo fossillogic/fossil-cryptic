@@ -51,101 +51,53 @@ FOSSIL_TEARDOWN(c_cipher_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST(c_test_cipher_compute_basic_xor_encrypt_decrypt) {
-    // Basic XOR cipher encryption and decryption
-    const char *algorithm = "xor";
-    const char *mode_enc = "encrypt";
-    const char *mode_dec = "decrypt";
-    const char *bits = "u8";
-    const char *key = "K";
-    const char *plaintext = "hello";
-    size_t input_len = strlen(plaintext);
-    unsigned char ciphertext[64];
-    size_t ciphertext_len = sizeof(ciphertext);
+FOSSIL_TEST(c_test_cipher_xor) {
+    const uint8_t key[] = {'K'};
+    const uint8_t plaintext[] = "hello";
+    const uint8_t expected[] = {0x23, 0x2e, 0x27, 0x27, 0x24};
+    uint8_t ciphertext[sizeof(plaintext) - 1];
+    uint8_t decrypted[sizeof(plaintext) - 1];
+    const size_t input_len = sizeof(plaintext) - 1;
 
-    int rc = fossil_cryptic_cipher_compute(
-        algorithm, mode_enc, bits, key,
-        plaintext, input_len,
-        ciphertext, &ciphertext_len
-    );
+    int rc = fossil_cryptic_cipher_xor(key, sizeof(key), plaintext, input_len, ciphertext);
     ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(ciphertext_len == input_len);
+    ASSUME_ITS_TRUE(memcmp(ciphertext, expected, input_len) == 0);
 
-    char decrypted[64];
-    size_t decrypted_len = sizeof(decrypted);
-    rc = fossil_cryptic_cipher_compute(
-        algorithm, mode_dec, bits, key,
-        ciphertext, ciphertext_len,
-        decrypted, &decrypted_len
-    );
+    rc = fossil_cryptic_cipher_xor(key, sizeof(key), ciphertext, input_len, decrypted);
     ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(decrypted_len == input_len);
     ASSUME_ITS_TRUE(memcmp(plaintext, decrypted, input_len) == 0);
 }
 
-FOSSIL_TEST(c_test_cipher_compute_null_arguments) {
-    // Should fail with null arguments
-    char out[32];
-    size_t out_len = sizeof(out);
-    int rc = fossil_cryptic_cipher_compute(NULL, "encrypt", "u8", "key", "data", 4, out, &out_len);
-    ASSUME_ITS_TRUE(rc != 0);
+FOSSIL_TEST(c_test_cipher_caesar) {
+    const uint8_t plaintext[] = "abcXYZ, 123";
+    const uint8_t expected[] = "defABC, 123";
+    uint8_t ciphertext[sizeof(plaintext)];
+    uint8_t decrypted[sizeof(plaintext)];
+    const size_t input_len = sizeof(plaintext) - 1;
 
-    rc = fossil_cryptic_cipher_compute("xor", NULL, "u8", "key", "data", 4, out, &out_len);
-    ASSUME_ITS_TRUE(rc != 0);
+    int rc = fossil_cryptic_cipher_caesar(3, plaintext, input_len, ciphertext);
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    ASSUME_ITS_TRUE(memcmp(ciphertext, expected, input_len) == 0);
 
-    rc = fossil_cryptic_cipher_compute("xor", "encrypt", NULL, "key", "data", 4, out, &out_len);
-    ASSUME_ITS_TRUE(rc != 0);
-
-    rc = fossil_cryptic_cipher_compute("xor", "encrypt", "u8", NULL, "data", 4, out, &out_len);
-    ASSUME_ITS_TRUE(rc != 0);
-
-    rc = fossil_cryptic_cipher_compute("xor", "encrypt", "u8", "key", NULL, 4, out, &out_len);
-    ASSUME_ITS_TRUE(rc != 0);
-
-    rc = fossil_cryptic_cipher_compute("xor", "encrypt", "u8", "key", "data", 4, NULL, &out_len);
-    ASSUME_ITS_TRUE(rc != 0);
-
-    rc = fossil_cryptic_cipher_compute("xor", "encrypt", "u8", "key", "data", 4, out, NULL);
-    ASSUME_ITS_TRUE(rc != 0);
+    rc = fossil_cryptic_cipher_caesar(-3, ciphertext, input_len, decrypted);
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    ASSUME_ITS_TRUE(memcmp(plaintext, decrypted, input_len) == 0);
 }
 
-FOSSIL_TEST(c_test_cipher_compute_unsupported_algorithm) {
-    // Should fail with unsupported algorithm
-    char out[32];
-    size_t out_len = sizeof(out);
-    int rc = fossil_cryptic_cipher_compute("unknown", "encrypt", "u8", "key", "data", 4, out, &out_len);
-    ASSUME_ITS_TRUE(rc == 0);
-    // Optionally, check that output length is zero or unchanged if needed
-}
+FOSSIL_TEST(c_test_cipher_vigenere) {
+    const char *key = "LEMON";
+    const uint8_t plaintext[] = "ATTACKATDAWN";
+    const uint8_t expected[] = "LXFOPVEFRNHR";
+    uint8_t ciphertext[sizeof(plaintext)];
+    uint8_t decrypted[sizeof(plaintext)];
+    const size_t input_len = sizeof(plaintext) - 1;
 
-FOSSIL_TEST(c_test_cipher_compute_caesar_encrypt_decrypt) {
-    // Caesar cipher encryption and decryption
-    const char *algorithm = "caesar";
-    const char *mode_enc = "encrypt";
-    const char *mode_dec = "decrypt";
-    const char *bits = "u8";
-    const char *key = "3";
-    const char *plaintext = "abcXYZ";
-    size_t input_len = strlen(plaintext);
-    char ciphertext[64];
-    size_t ciphertext_len = sizeof(ciphertext);
-
-    int rc = fossil_cryptic_cipher_compute(
-        algorithm, mode_enc, bits, key,
-        plaintext, input_len,
-        ciphertext, &ciphertext_len
-    );
+    int rc = fossil_cryptic_cipher_vigenere(key, 1, plaintext, input_len, ciphertext);
     ASSUME_ITS_EQUAL_I32(rc, 0);
+    ASSUME_ITS_TRUE(memcmp(ciphertext, expected, input_len) == 0);
 
-    char decrypted[64];
-    size_t decrypted_len = sizeof(decrypted);
-    rc = fossil_cryptic_cipher_compute(
-        algorithm, mode_dec, bits, key,
-        ciphertext, ciphertext_len,
-        decrypted, &decrypted_len
-    );
+    rc = fossil_cryptic_cipher_vigenere(key, 0, ciphertext, input_len, decrypted);
     ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(decrypted_len == input_len);
     ASSUME_ITS_TRUE(memcmp(plaintext, decrypted, input_len) == 0);
 }
 
@@ -153,10 +105,9 @@ FOSSIL_TEST(c_test_cipher_compute_caesar_encrypt_decrypt) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_cipher_tests) {
-    FOSSIL_ADD_TEST(c_cipher_fixture, c_test_cipher_compute_basic_xor_encrypt_decrypt);
-    FOSSIL_ADD_TEST(c_cipher_fixture, c_test_cipher_compute_null_arguments);
-    FOSSIL_ADD_TEST(c_cipher_fixture, c_test_cipher_compute_unsupported_algorithm);
-    FOSSIL_ADD_TEST(c_cipher_fixture, c_test_cipher_compute_caesar_encrypt_decrypt);
+    FOSSIL_ADD_TEST(c_cipher_fixture, c_test_cipher_xor);
+    FOSSIL_ADD_TEST(c_cipher_fixture, c_test_cipher_caesar);
+    FOSSIL_ADD_TEST(c_cipher_fixture, c_test_cipher_vigenere);
 
     FOSSIL_ADD_SUITE(c_cipher_fixture);
 } // end of tests

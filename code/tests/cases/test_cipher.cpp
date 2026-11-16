@@ -51,83 +51,63 @@ FOSSIL_TEARDOWN(cpp_cipher_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST(cpp_test_cipher_compute_basicpp_xor_encrypt_decrypt) {
-    // Basic XOR cipher encryption and decryption using fossil::cryptic::Cipher
-    const std::string algorithm = "xor";
-    const std::string mode_enc = "encrypt";
-    const std::string mode_dec = "decrypt";
-    const std::string bits = "u8";
+FOSSIL_TEST(cpp_test_cipher_xor_encrypt_decrypt) {
     const std::string key = "K";
     const std::string plaintext = "hello";
+    std::string ciphertext(plaintext.size(), '\0');
+    std::string decrypted(plaintext.size(), '\0');
 
-    auto ciphertext = fossil::cryptic::Cipher::compute(
-        algorithm, mode_enc, bits, key, plaintext
-    );
-    ASSUME_ITS_TRUE(ciphertext.size() == plaintext.size());
-
-    auto decrypted = fossil::cryptic::Cipher::compute(
-        algorithm, mode_dec, bits, key, ciphertext
-    );
-    ASSUME_ITS_TRUE(decrypted.size() == plaintext.size());
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::xor_cipher(
+        reinterpret_cast<const uint8_t *>(key.data()), key.size(),
+        reinterpret_cast<const uint8_t *>(plaintext.data()), plaintext.size(),
+        reinterpret_cast<uint8_t *>(&ciphertext[0])) == 0);
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::xor_cipher(
+        reinterpret_cast<const uint8_t *>(key.data()), key.size(),
+        reinterpret_cast<const uint8_t *>(ciphertext.data()), ciphertext.size(),
+        reinterpret_cast<uint8_t *>(&decrypted[0])) == 0);
     ASSUME_ITS_TRUE(memcmp(plaintext.data(), decrypted.data(), plaintext.size()) == 0);
 }
 
-FOSSIL_TEST(cpp_test_cipher_compute_null_arguments) {
-    // Should fail with null arguments using fossil::cryptic::Cipher
-    const std::string bits = "u8";
-    const std::string key = "key";
-    const std::string data = "data";
+FOSSIL_TEST(cpp_test_cipher_invalid_arguments) {
+    const uint8_t key[] = {'k'};
+    const uint8_t data[] = {'d'};
+    uint8_t output[1] = {0};
 
-    auto out1 = fossil::cryptic::Cipher::compute("", "encrypt", bits, key, data);
-    ASSUME_ITS_TRUE(out1.empty());
-
-    auto out2 = fossil::cryptic::Cipher::compute("xor", "", bits, key, data);
-    ASSUME_ITS_TRUE(out2.empty());
-
-    auto out3 = fossil::cryptic::Cipher::compute("xor", "encrypt", "", key, data);
-    ASSUME_ITS_TRUE(out3.empty());
-
-    auto out4 = fossil::cryptic::Cipher::compute("xor", "encrypt", bits, "", data);
-    ASSUME_ITS_TRUE(out4.empty());
-
-    auto out5 = fossil::cryptic::Cipher::compute("xor", "encrypt", bits, key, "");
-    ASSUME_ITS_TRUE(out5.empty());
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::xor_cipher(nullptr, sizeof(key), data, sizeof(data), output) != 0);
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::xor_cipher(key, sizeof(key), nullptr, sizeof(data), output) != 0);
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::xor_cipher(key, sizeof(key), data, sizeof(data), nullptr) != 0);
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::caesar(1, nullptr, sizeof(data), output) != 0);
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::caesar(1, data, sizeof(data), nullptr) != 0);
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::vigenere(nullptr, 1, data, sizeof(data), output) != 0);
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::vigenere("key", 1, data, sizeof(data), nullptr) != 0);
 }
 
-FOSSIL_TEST(cpp_test_cipher_compute_unsupported_algorithm) {
-    // Should fail with unsupported algorithm using fossil::cryptic::Cipher
-    const std::string algorithm = "unknown";
-    const std::string mode = "encrypt";
-    const std::string bits = "u8";
-    const std::string key = "key";
-    const std::string data = "data";
-
-    bool exception_thrown = false;
-    try {
-        auto out = fossil::cryptic::Cipher::compute(algorithm, mode, bits, key, data);
-    } catch (const std::exception&) {
-        exception_thrown = true;
-    }
-    ASSUME_ITS_TRUE(exception_thrown);
-}
-
-FOSSIL_TEST(cpp_test_cipher_compute_caesar_encrypt_decrypt) {
-    // Caesar cipher encryption and decryption using fossil::cryptic::Cipher
-    const std::string algorithm = "caesar";
-    const std::string mode_enc = "encrypt";
-    const std::string mode_dec = "decrypt";
-    const std::string bits = "u8";
-    const std::string key = "3";
+FOSSIL_TEST(cpp_test_cipher_caesar_encrypt_decrypt) {
     const std::string plaintext = "abcXYZ";
+    std::string ciphertext(plaintext.size(), '\0');
+    std::string decrypted(plaintext.size(), '\0');
 
-    auto ciphertext = fossil::cryptic::Cipher::compute(
-        algorithm, mode_enc, bits, key, plaintext
-    );
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::caesar(
+        3, reinterpret_cast<const uint8_t *>(plaintext.data()), plaintext.size(),
+        reinterpret_cast<uint8_t *>(&ciphertext[0])) == 0);
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::caesar(
+        -3, reinterpret_cast<const uint8_t *>(ciphertext.data()), ciphertext.size(),
+        reinterpret_cast<uint8_t *>(&decrypted[0])) == 0);
+    ASSUME_ITS_TRUE(memcmp(plaintext.data(), decrypted.data(), plaintext.size()) == 0);
+}
 
-    auto decrypted = fossil::cryptic::Cipher::compute(
-        algorithm, mode_dec, bits, key, ciphertext
-    );
-    ASSUME_ITS_TRUE(decrypted.size() == plaintext.size());
+FOSSIL_TEST(cpp_test_cipher_vigenere_encrypt_decrypt) {
+    const std::string key = "LEMON";
+    const std::string plaintext = "AttackAtDawn";
+    std::string ciphertext(plaintext.size(), '\0');
+    std::string decrypted(plaintext.size(), '\0');
+
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::vigenere(
+        key.c_str(), 1, reinterpret_cast<const uint8_t *>(plaintext.data()), plaintext.size(),
+        reinterpret_cast<uint8_t *>(&ciphertext[0])) == 0);
+    ASSUME_ITS_TRUE(fossil::cryptic::Cipher::vigenere(
+        key.c_str(), 0, reinterpret_cast<const uint8_t *>(ciphertext.data()), ciphertext.size(),
+        reinterpret_cast<uint8_t *>(&decrypted[0])) == 0);
     ASSUME_ITS_TRUE(memcmp(plaintext.data(), decrypted.data(), plaintext.size()) == 0);
 }
 
@@ -135,10 +115,10 @@ FOSSIL_TEST(cpp_test_cipher_compute_caesar_encrypt_decrypt) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_cipher_tests) {
-    FOSSIL_ADD_TEST(cpp_cipher_fixture, cpp_test_cipher_compute_basicpp_xor_encrypt_decrypt);
-    FOSSIL_ADD_TEST(cpp_cipher_fixture, cpp_test_cipher_compute_null_arguments);
-    FOSSIL_ADD_TEST(cpp_cipher_fixture, cpp_test_cipher_compute_unsupported_algorithm);
-    FOSSIL_ADD_TEST(cpp_cipher_fixture, cpp_test_cipher_compute_caesar_encrypt_decrypt);
+    FOSSIL_ADD_TEST(cpp_cipher_fixture, cpp_test_cipher_xor_encrypt_decrypt);
+    FOSSIL_ADD_TEST(cpp_cipher_fixture, cpp_test_cipher_invalid_arguments);
+    FOSSIL_ADD_TEST(cpp_cipher_fixture, cpp_test_cipher_caesar_encrypt_decrypt);
+    FOSSIL_ADD_TEST(cpp_cipher_fixture, cpp_test_cipher_vigenere_encrypt_decrypt);
 
     FOSSIL_ADD_SUITE(cpp_cipher_fixture);
 } // end of tests

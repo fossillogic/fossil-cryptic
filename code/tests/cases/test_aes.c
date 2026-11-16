@@ -66,6 +66,24 @@ FOSSIL_TEST(c_test_aes_gcm_encrypt_decrypt_roundtrip) {
     ASSUME_ITS_TRUE(memcmp(decrypted, plaintext, sizeof(plaintext)) == 0);
 }
 
+FOSSIL_TEST(c_test_aes_gcm_matches_aes256_vector) {
+    const uint8_t key[32] = {0};
+    const uint8_t nonce[12] = {0};
+    const uint8_t ad = 0;
+    const uint8_t plaintext[16] = {0};
+    const uint8_t expected[32] = {
+        0xce, 0xa7, 0x40, 0x3d, 0x4d, 0x60, 0x6b, 0x6e,
+        0x07, 0x4e, 0xc5, 0xd3, 0xba, 0xf3, 0x9d, 0x18,
+        0xd0, 0xd1, 0xc8, 0xa7, 0x99, 0x99, 0x6b, 0xf0,
+        0x26, 0x5b, 0x98, 0xb5, 0xd4, 0x8a, 0xb9, 0x19
+    };
+    uint8_t ciphertext[sizeof(plaintext) + 16];
+
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_aes_gcm_encrypt(
+        ciphertext, key, nonce, &ad, 0, plaintext, sizeof(plaintext)), 0);
+    ASSUME_ITS_TRUE(memcmp(ciphertext, expected, sizeof(expected)) == 0);
+}
+
 FOSSIL_TEST(c_test_aes_gcm_encrypt_null_params) {
     const uint8_t key[32] = {0};
     const uint8_t nonce[12] = {0};
@@ -125,6 +143,7 @@ FOSSIL_TEST(c_test_aes_gcm_decrypt_rejects_modified_tag) {
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_aes_gcm_tests) {
     FOSSIL_ADD_TEST(c_aes_fixture, c_test_aes_gcm_encrypt_decrypt_roundtrip);
+    FOSSIL_ADD_TEST(c_aes_fixture, c_test_aes_gcm_matches_aes256_vector);
     FOSSIL_ADD_TEST(c_aes_fixture, c_test_aes_gcm_encrypt_null_params);
     FOSSIL_ADD_TEST(c_aes_fixture, c_test_aes_gcm_decrypt_null_params);
     FOSSIL_ADD_TEST(c_aes_fixture, c_test_aes_gcm_decrypt_rejects_modified_tag);

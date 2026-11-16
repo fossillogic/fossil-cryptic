@@ -185,6 +185,88 @@ FOSSIL_TEST(c_test_crc32_bin_base) {
     ASSUME_ITS_EQUAL_CSTR(bin, "00110101001001000100000111000010");
 }
 
+FOSSIL_TEST(c_test_hash_blake2b_512_binary) {
+    const char *msg = "abc";
+    const uint8_t expected[64] = {
+        0xba, 0x80, 0xa5, 0x3f, 0x98, 0x1c, 0x4d, 0x0d,
+        0x6a, 0x27, 0x97, 0xb6, 0x9f, 0x12, 0xf6, 0xe9,
+        0x4c, 0x21, 0x2f, 0x14, 0x68, 0x5a, 0xc4, 0xb7,
+        0x4b, 0x12, 0xbb, 0x6f, 0xdb, 0xff, 0xa2, 0xd1,
+        0x7d, 0x87, 0xc5, 0x39, 0x2a, 0xab, 0x79, 0x2d,
+        0xc2, 0x52, 0xd5, 0xde, 0x45, 0x33, 0xcc, 0x95,
+        0x18, 0xd3, 0x8a, 0xa8, 0xdb, 0xf1, 0x92, 0x5a,
+        0xb9, 0x23, 0x86, 0xed, 0xd4, 0x00, 0x99, 0x23
+    };
+    uint8_t out[64];
+    int rc = fossil_cryptic_hash_blake2b_512(msg, 3, out);
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    for (size_t i = 0; i < sizeof(out); ++i) {
+        ASSUME_ITS_EQUAL_I32(out[i], expected[i]);
+    }
+}
+
+FOSSIL_TEST(c_test_hash_blake2b_256_binary) {
+    const char *msg = "abc";
+    const uint8_t expected[32] = {
+        0xbd, 0xdd, 0x81, 0x3c, 0x63, 0x42, 0x39, 0x72,
+        0x31, 0x71, 0xef, 0x3f, 0xee, 0x98, 0x57, 0x9b,
+        0x94, 0x96, 0x4e, 0x3b, 0xb1, 0xcb, 0x3e, 0x42,
+        0x72, 0x62, 0xc8, 0xc0, 0x68, 0xd5, 0x23, 0x19
+    };
+    uint8_t out[32];
+    int rc = fossil_cryptic_hash_blake2b_256(msg, 3, out);
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    for (size_t i = 0; i < sizeof(out); ++i) {
+        ASSUME_ITS_EQUAL_I32(out[i], expected[i]);
+    }
+}
+
+FOSSIL_TEST(c_test_hash_sha256_binary) {
+    const char *msg = "abc";
+    const uint8_t expected[32] = {
+        0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea,
+        0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23,
+        0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c,
+        0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad
+    };
+    uint8_t out[32];
+    int rc = fossil_cryptic_hash_sha256(msg, 3, out);
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    for (size_t i = 0; i < sizeof(out); ++i) {
+        ASSUME_ITS_EQUAL_I32(out[i], expected[i]);
+    }
+}
+
+FOSSIL_TEST(c_test_hash_sha512_binary) {
+    const char *msg = "abc";
+    const uint8_t expected[64] = {
+        0xdd, 0xaf, 0x35, 0xa1, 0x93, 0x61, 0x7a, 0xba,
+        0xcc, 0x41, 0x73, 0x49, 0xae, 0x20, 0x41, 0x31,
+        0x12, 0xe6, 0xfa, 0x4e, 0x89, 0xa9, 0x7e, 0xa2,
+        0x0a, 0x9e, 0xee, 0xe6, 0x4b, 0x55, 0xd3, 0x9a,
+        0x21, 0x92, 0x99, 0x2a, 0x27, 0x4f, 0xc1, 0xa8,
+        0x36, 0xba, 0x3c, 0x23, 0xa3, 0xfe, 0xeb, 0xbd,
+        0x45, 0x4d, 0x44, 0x23, 0x64, 0x3c, 0xe8, 0x0e,
+        0x2a, 0x9a, 0xc9, 0x4f, 0xa5, 0x4c, 0xa4, 0x9f
+    };
+    uint8_t out[64];
+    int rc = fossil_cryptic_hash_sha512(msg, 3, out);
+    ASSUME_ITS_EQUAL_I32(rc, 0);
+    for (size_t i = 0; i < sizeof(out); ++i) {
+        ASSUME_ITS_EQUAL_I32(out[i], expected[i]);
+    }
+}
+
+FOSSIL_TEST(c_test_hash_utility_functions) {
+    const char *msg = "abc";
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_crc32(msg, 3), 0x352441c2u);
+    ASSUME_ITS_EQUAL_I64(fossil_cryptic_hash_crc64(msg, 3), 0x2cd8094a1a277627ULL);
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_fnv32(msg, 3), 0x1a47e90bu);
+    ASSUME_ITS_EQUAL_I64(fossil_cryptic_hash_fnv64(msg, 3), 0xe71fa2190541574bULL);
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_djb2(msg, 3), 0x0b885c8bu);
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_sdbm(msg, 3), 0x3025f862u);
+}
+
 FOSSIL_TEST(c_test_invalid_algorithm) {
     const char *msg = "abc";
     char hex[9];
@@ -240,6 +322,11 @@ FOSSIL_TEST_GROUP(c_hash_tests) {
     FOSSIL_ADD_TEST(c_hash_fixture, c_test_crc32_dec_base);
     FOSSIL_ADD_TEST(c_hash_fixture, c_test_crc32_oct_base);
     FOSSIL_ADD_TEST(c_hash_fixture, c_test_crc32_bin_base);
+    FOSSIL_ADD_TEST(c_hash_fixture, c_test_hash_blake2b_512_binary);
+    FOSSIL_ADD_TEST(c_hash_fixture, c_test_hash_blake2b_256_binary);
+    FOSSIL_ADD_TEST(c_hash_fixture, c_test_hash_sha256_binary);
+    FOSSIL_ADD_TEST(c_hash_fixture, c_test_hash_sha512_binary);
+    FOSSIL_ADD_TEST(c_hash_fixture, c_test_hash_utility_functions);
     FOSSIL_ADD_TEST(c_hash_fixture, c_test_invalid_algorithm);
     FOSSIL_ADD_TEST(c_hash_fixture, c_test_invalid_bits);
     FOSSIL_ADD_TEST(c_hash_fixture, c_test_invalid_base);
