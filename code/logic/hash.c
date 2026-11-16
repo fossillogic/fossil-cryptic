@@ -41,10 +41,10 @@ static uint64_t blake2b_load64(const uint8_t *p) {
     return v;
 }
 
-static void blake2b_store64(uint8_t *p, uint64_t v) {
-    for (unsigned i = 0; i < 8; i++)
-        p[i] = (uint8_t)(v >> (8 * i));
-}
+// static void blake2b_store64(uint8_t *p, uint64_t v) {
+//     for (unsigned i = 0; i < 8; i++)
+//         p[i] = (uint8_t)(v >> (8 * i));
+// }
 
 static void blake2b_g(uint64_t *v, int a, int b, int c, int d, uint64_t x, uint64_t y) {
     v[a] = v[a] + v[b] + x;

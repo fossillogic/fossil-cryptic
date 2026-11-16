@@ -26,6 +26,7 @@
 #include "fossil/cryptic/hash.h"
 #include "fossil/cryptic/util.h"
 #include <string.h>
+#include <stdlib.h>
 
 #define SHA256_BLOCK 64
 #define BLAKE2B_BLOCK 128
