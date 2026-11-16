@@ -56,12 +56,12 @@ static uint32_t load_be32(const uint8_t *p) {
            ((uint32_t)p[2] <<  8) |  (uint32_t)p[3];
 }
 
-static void store_be32(uint8_t *p, uint32_t v) {
-    p[0] = (uint8_t)(v >> 24);
-    p[1] = (uint8_t)(v >> 16);
-    p[2] = (uint8_t)(v >>  8);
-    p[3] = (uint8_t)v;
-}
+// static void store_be32(uint8_t *p, uint32_t v) {
+//     p[0] = (uint8_t)(v >> 24);
+//     p[1] = (uint8_t)(v >> 16);
+//     p[2] = (uint8_t)(v >>  8);
+//     p[3] = (uint8_t)v;
+// }
 
 static uint32_t sub_word(uint32_t w) {
     return ((uint32_t)sbox[(w >> 24) & 0xff] << 24) |
