@@ -29,161 +29,124 @@
 #include <stddef.h>
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 /**
- * @brief Computes a cipher transformation (encryption or decryption) on the input data using the specified algorithm and options.
+ * @brief XOR cipher (symmetric).
  *
- * This function applies a cipher operation to the provided input buffer using one of several supported
- * algorithms and modes. The result is written to the provided output buffer.
+ * @param key Pointer to the key.
+ * @param key_len Length of the key in bytes.
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ * @param out Pointer to the output buffer where the result will be stored.
  *
- * @param algorithm
- *      The cipher algorithm to use. Supported values include:
- *      - "xor", "feistel", "caesar", "vigenere", "morse", "auto"
- * @param mode
- *      The operation mode. Supported values:
- *      - "encrypt", "decrypt", "auto"
- * @param bits
- *      The bit width for the cipher operation. Supported values:
- *      - "u32", "u64", "auto"
- * @param key
- *      The key string used for the cipher operation.
- * @param input
- *      Pointer to the input data buffer to be transformed.
- * @param input_len
- *      Length of the input data buffer in bytes.
- * @param output
- *      Pointer to the buffer where the resulting ciphered data will be written.
- * @param output_len
- *      Pointer to a variable holding the size of the output buffer on input, and the actual output size on output.
- * @return
- *      Returns 0 on success. Returns a non-zero value on error (e.g., invalid parameters,
- *      unsupported algorithm, insufficient output buffer size).
+ * @return 0 on success, non-zero on failure.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Cipher::xor_cipher instead.
  */
-int fossil_cryptic_cipher_compute(
-    const char* algorithm,   // "xor", "feistel", "caesar", "vigenere", "morse", "auto"
-    const char* mode,        // "encrypt", "decrypt", "auto"
-    const char* bits,        // "u32", "u64", "auto"
-    const char* key,         // key string
-    const void* input, size_t input_len,
-    void* output, size_t* output_len
-);
+int fossil_cryptic_cipher_xor(
+    const uint8_t *key, size_t key_len,
+    const uint8_t *in, size_t in_len,
+    uint8_t *out);
 
+/**
+ * @brief Caesar cipher (symmetric). Only affects A-Z / a-z.
+ *
+ * @param shift The number of positions to shift each letter (positive for right shift, negative for left shift).
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ * @param out Pointer to the output buffer where the result will be stored.
+ *
+ * @return 0 on success, non-zero on failure.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Cipher::caesar instead.
+ */
+int fossil_cryptic_cipher_caesar(
+    int shift,
+    const uint8_t *in, size_t in_len,
+    uint8_t *out);
+
+/**
+ * @brief Vigenère cipher (symmetric). Only affects A-Z / a-z.
+ *
+ * @param key Pointer to the key string (null-terminated).
+ * @param encrypt 1 to encrypt, 0 to decrypt.
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ * @param out Pointer to the output buffer where the result will be stored.
+ *
+ * @return 0 on success, non-zero on failure.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Cipher::vigenere instead.
+ */
+int fossil_cryptic_cipher_vigenere(
+    const char *key,
+    int encrypt, /* 1 = encrypt, 0 = decrypt */
+    const uint8_t *in, size_t in_len,
+    uint8_t *out);
 
 #ifdef __cplusplus
 }
-#include <string>
-#include <vector>
-#include <array>
-#include <algorithm>
-#include <stdexcept>
 
-namespace fossil {
+namespace fossil::cryptic
+{
 
-    namespace cryptic {
+    class Cipher
+    {
+    public:
+        /**
+         * @brief XOR cipher (symmetric).
+         *
+         * @param key Pointer to the key.
+         * @param key_len Length of the key in bytes.
+         * @param in Pointer to the input data.
+         * @param in_len Length of the input data in bytes.
+         * @param out Pointer to the output buffer where the result will be stored.
+         *
+         * @return 0 on success, non-zero on failure.
+         */
+        static int xor_cipher(const uint8_t *key, size_t key_len,
+                              const uint8_t *in, size_t in_len, uint8_t *out)
+        {
+            return fossil_cryptic_cipher_xor(key, key_len, in, in_len, out);
+        }
 
-        class Cipher {
-        public:
-            /**
-             * @brief Computes a cipher transformation (encryption or decryption) on the input data using the specified algorithm and options.
-             *
-             * @param algorithm
-             *      The cipher algorithm to use. Supported values include:
-             *      - "xor", "feistel", "auto"
-             * @param mode
-             *      The operation mode. Supported values:
-             *      - "encrypt", "decrypt", "auto"
-             * @param bits
-             *      The bit width for the cipher operation. Supported values:
-             *      - "u32", "u64", "auto"
-             * @param key
-             *      The key string used for the cipher operation.
-             * @param input
-             *      Pointer to the input data buffer to be transformed.
-             * @param input_len
-             *      Length of the input data buffer in bytes.
-             * @return
-             *      The resulting ciphered data as a std::vector<uint8_t>.
-             *      Returns empty vector on invalid/null arguments.
-             * @throws std::invalid_argument on unsupported algorithm.
-             * @throws std::runtime_error on cipher errors.
-             */
-            static std::vector<uint8_t> compute(
-            const std::string& algorithm,
-            const std::string& mode,
-            const std::string& bits,
-            const std::string& key,
-            const void* input,
-            size_t input_len
-            ) {
-            // Check for null/empty arguments
-            if (algorithm.empty() || mode.empty() || bits.empty() || key.empty() || input == nullptr || input_len == 0) {
-                return {};
-            }
+        /**
+         * @brief Caesar cipher (symmetric). Only affects A-Z / a-z.
+         *
+         * @param shift The number of positions to shift each letter (positive for right shift, negative for left shift).
+         * @param in Pointer to the input data.
+         * @param in_len Length of the input data in bytes.
+         * @param out Pointer to the output buffer where the result will be stored.
+         *
+         * @return 0 on success, non-zero on failure.
+         */
+        static int caesar(int shift, const uint8_t *in, size_t in_len, uint8_t *out)
+        {
+            return fossil_cryptic_cipher_caesar(shift, in, in_len, out);
+        }
 
-            // Only allow supported algorithms, throw for unknown
-            static const std::vector<std::string> supported_algorithms = {
-                "xor", "feistel", "caesar", "vigenere", "morse", "auto"
-            };
-            if (std::find(supported_algorithms.begin(), supported_algorithms.end(), algorithm) == supported_algorithms.end()) {
-                throw std::invalid_argument("Unsupported cipher algorithm: " + algorithm);
-            }
+        /**
+         * @brief Vigenère cipher (symmetric). Only affects A-Z / a-z.
+         *
+         * @param key Pointer to the key string (null-terminated).
+         * @param encrypt 1 to encrypt, 0 to decrypt.
+         * @param in Pointer to the input data.
+         * @param in_len Length of the input data in bytes.
+         * @param out Pointer to the output buffer where the result will be stored.
+         *
+         * @return 0 on success, non-zero on failure.
+         */
+        static int vigenere(const char *key, int encrypt, const uint8_t *in, size_t in_len, uint8_t *out)
+        {
+            return fossil_cryptic_cipher_vigenere(key, encrypt, in, in_len, out);
+        }
+    };
 
-            std::vector<uint8_t> output(input_len);
-            size_t output_len = output.size();
-            int result = fossil_cryptic_cipher_compute(
-                algorithm.c_str(),
-                mode.c_str(),
-                bits.c_str(),
-                key.c_str(),
-                input,
-                input_len,
-                output.data(),
-                &output_len
-            );
-            if (result != 0) {
-                // For unsupported algorithm, fossil_cryptic_cipher_compute may also return error
-                // But we already checked above, so treat all errors as runtime except for empty input
-                return {};
-            }
-            output.resize(output_len);
-            return output;
-            }
-
-            /**
-             * @brief Overload for std::vector<uint8_t> input.
-             */
-            static std::vector<uint8_t> compute(
-            const std::string& algorithm,
-            const std::string& mode,
-            const std::string& bits,
-            const std::string& key,
-            const std::vector<uint8_t>& input
-            ) {
-            if (input.empty()) return {};
-            return compute(algorithm, mode, bits, key, input.data(), input.size());
-            }
-
-            /**
-             * @brief Overload for std::string input.
-             */
-            static std::vector<uint8_t> compute(
-            const std::string& algorithm,
-            const std::string& mode,
-            const std::string& bits,
-            const std::string& key,
-            const std::string& input
-            ) {
-            if (input.empty()) return {};
-            return compute(algorithm, mode, bits, key, input.data(), input.size());
-            }
-        };
-
-    } // namespace cryptic
-
-} // namespace fossil
+} // namespace cryptic::fossil
 
 #endif
 
-#endif /* FOSSIL_CRYPTIC_HASH_H */
+#endif /* FOSSIL_CRYPTIC_CIPHER_H */

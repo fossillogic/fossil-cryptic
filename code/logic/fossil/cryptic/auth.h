@@ -32,117 +32,94 @@
 extern "C" {
 #endif
 
-/**
- * @file auth.h
- * @brief Header file for authentication logic in the Fossil Cryptic project.
+/** 
+ * @brief Compute HMAC using SHA-256.
  *
- * This file is intended to declare the interfaces, structures, and constants
- * related to authentication mechanisms used within the Fossil Cryptic codebase.
- * It should be included by source files that require access to authentication
- * functionality, such as user verification, credential management, or session
- * handling.
+ * @param key Pointer to the key.
+ * @param key_len Length of the key in bytes.
+ * @param msg Pointer to the message.
+ * @param msg_len Length of the message in bytes.
+ * @param out Pointer to a buffer where the 32-byte HMAC will be stored.
  *
- * Typical contents of this header may include:
- *   - Function prototypes for authentication routines.
- *   - Data structures representing authentication contexts or user credentials.
- *   - Macros and constants relevant to authentication logic.
+ * @return 0 on success, non-zero on failure.
  *
- * @note
- * Ensure that any sensitive information or implementation details are not exposed
- * in this header. Only declare what is necessary for other modules to interact
- * with the authentication subsystem.
- *
- * @author dreamer-coding
- * @date   (Add date here)
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Auth::hmac_sha256 instead.
  */
-int fossil_cryptic_auth_compute(
-    const char* algorithm,   // hash algorithm
-    const char* bits,        // u32, u64, or auto
-    const char* base,        // hex, base64, auto
-    const char* key,         // secret key
-    const void* input, size_t input_len,
-    char* output, size_t output_len
-);
+int fossil_cryptic_auth_hmac_sha256(
+    const uint8_t *key, size_t key_len,
+    const void *msg, size_t msg_len,
+    uint8_t out[32]);
+
+/** 
+ * @brief Compute HMAC using BLAKE2b-512.
+ * 
+ * @param key Pointer to the key.
+ * @param key_len Length of the key in bytes.
+ * @param msg Pointer to the message.
+ * @param msg_len Length of the message in bytes.
+ * @param out Pointer to a buffer where the 64-byte HMAC will be stored.
+ * 
+ * @return 0 on success, non-zero on failure.
+ * 
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Auth::hmac_blake2b_512 instead.
+ */
+int fossil_cryptic_auth_hmac_blake2b_512(
+    const uint8_t *key, size_t key_len,
+    const void *msg, size_t msg_len,
+    uint8_t out[64]);
 
 #ifdef __cplusplus
 }
-#include <stdexcept>
-#include <string>
-#include <vector>
 #include <array>
+#include <stdexcept>
 
-namespace fossil {
+namespace fossil::cryptic {
 
-    namespace cryptic {
+    class Auth {
+    public:
+        /**
+         * @brief Computes the HMAC using SHA-256.
+         *
+         * @param key Pointer to the key.
+         * @param key_len Length of the key in bytes.
+         * @param msg Pointer to the message.
+         * @param msg_len Length of the message in bytes.
+         * @return A std::array containing the 32-byte HMAC.
+         * @throws std::runtime_error if the underlying C function fails.
+         */
+        static std::array<uint8_t, 32> hmac_sha256(
+            const uint8_t *key, size_t key_len,
+            const void *msg, size_t msg_len)
+        {
+            std::array<uint8_t, 32> out{};
+            if (fossil_cryptic_auth_hmac_sha256(key, key_len, msg, msg_len, out.data()) != 0)
+                throw std::runtime_error("hmac_sha256 failed");
+            return out;
+        }
 
         /**
-         * @class Auth
-         * @brief C++ wrapper for authentication logic in the Fossil Cryptic project.
+         * @brief Computes the HMAC using BLAKE2b-512.
          *
-         * The Auth class provides a static interface for computing authentication
-         * hashes using various algorithms, bit sizes, and output encodings. It acts
-         * as a C++-friendly wrapper around the underlying C function
-         * fossil_cryptic_auth_compute, enabling seamless integration with C++ codebases.
-         *
-         * Usage example:
-         * @code
-         *     std::string algorithm = "sha256";
-         *     std::string bits = "u32";
-         *     std::string base = "hex";
-         *     std::string key = "my_secret_key";
-         *     const void* input = ...;
-         *     size_t input_len = ...;
-         *     char output[128];
-         *     int result = fossil::cryptic::Auth::compute(
-         *         algorithm, bits, base, key, input, input_len, output, sizeof(output)
-         *     );
-         * @endcode
-         *
-         * @note
-         * This class is intended for use in C++ environments only. For C code,
-         * use the fossil_cryptic_auth_compute function directly.
+         * @param key Pointer to the key.
+         * @param key_len Length of the key in bytes.
+         * @param msg Pointer to the message.
+         * @param msg_len Length of the message in bytes.
+         * @return A std::array containing the 64-byte HMAC.
+         * @throws std::runtime_error if the underlying C function fails.
          */
-        class Auth {
-        public:
-            /**
-             * @brief Compute an authentication hash.
-             *
-             * This static method computes an authentication hash using the specified
-             * algorithm, bit size, base encoding, and secret key. The result is written
-             * to the provided output buffer.
-             *
-             * @param algorithm  Hash algorithm to use (e.g., "sha256").
-             * @param bits       Bit size or mode (e.g., "u32", "u64", or "auto").
-             * @param base       Output encoding (e.g., "hex", "base64", or "auto").
-             * @param key        Secret key for authentication.
-             * @param input      Pointer to input data.
-             * @param input_len  Length of input data in bytes.
-             * @param output     Buffer to receive the output hash.
-             * @param output_len Size of the output buffer in bytes.
-             * @return           0 on success, non-zero on failure.
-             */
-            static int compute(
-            const std::string& algorithm,
-            const std::string& bits,
-            const std::string& base,
-            const std::string& key,
-            const void* input, size_t input_len,
-            char* output, size_t output_len)
-            {
-                return fossil_cryptic_auth_compute(
-                    algorithm.c_str(),
-                    bits.c_str(),
-                    base.c_str(),
-                    key.c_str(),
-                    input, input_len,
-                    output, output_len);
-            }
-        };
+        static std::array<uint8_t, 64> hmac_blake2b_512(
+            const uint8_t *key, size_t key_len,
+            const void *msg, size_t msg_len)
+        {
+            std::array<uint8_t, 64> out{};
+            if (fossil_cryptic_auth_hmac_blake2b_512(key, key_len, msg, msg_len, out.data()) != 0)
+                throw std::runtime_error("hmac_blake2b_512 failed");
+            return out;
+        }
+    };
 
-    } // namespace cryptic
-
-} // namespace fossil
+} // namespace cryptic::fossil
 
 #endif
 
-#endif /* FOSSIL_CRYPTIC_HASH_H */
+#endif /* FOSSIL_CRYPTIC_AUTH_H */

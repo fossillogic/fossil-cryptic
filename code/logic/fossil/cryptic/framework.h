@@ -25,12 +25,13 @@
 #ifndef FOSSIL_CRYPTIC_FRAMEWORK_H
 #define FOSSIL_CRYPTIC_FRAMEWORK_H
 
+#include "util.h"
+#include "rand.h"
 #include "hash.h"
 #include "auth.h"
-#include "aead.h"
-#include "aes.h"
-#include "cipher.h"
 #include "keygen.h"
-#include "rand.h"
+#include "aes.h"
+#include "aead.h"
+#include "cipher.h"
 
-#endif /* FOSSIL_CRYPTIC_FRAMEWORK_H */
+#endif

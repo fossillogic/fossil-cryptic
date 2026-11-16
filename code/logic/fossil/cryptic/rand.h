@@ -33,119 +33,61 @@ extern "C" {
 #endif
 
 /**
- * @brief Generates a random value using the specified algorithm, bit width, and output base.
+ * Fill a buffer with cryptographically secure random bytes.
+ * Uses the best available OS CSPRNG.
  *
- * This function produces a random value using one of several supported algorithms. The result
- * is formatted according to the specified bit width and output base, and is written as a string
- * to the provided output buffer.
- *
- * @param algorithm
- *      The random number generation algorithm to use. Supported values include:
- *      - "lcg", "xor", "mix", "auto"
- * @param bits
- *      The bit width of the output random value. Supported values:
- *      - "u32", "u64", "auto"
- * @param base
- *      The output encoding/base for the random string. Supported values:
- *      - "hex", "base64", "auto"
- * @param output
- *      Pointer to the buffer where the resulting random string will be written.
- * @param output_len
- *      Size of the output buffer in bytes, including the null terminator.
- * @return
- *      Returns 0 on success. Returns a non-zero value on error (e.g., invalid parameters,
- *      unsupported algorithm, insufficient output buffer size).
+ * @param out  Output buffer
+ * @param len  Number of bytes to generate
+ * 
+ * @return     0 on success, negative on failure
+ * 
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Rand::bytes instead.
  */
-int fossil_cryptic_rand_compute(
-    const char* algorithm,   // "lcg", "xor", "mix", "auto"
-    const char* bits,        // "u32", "u64", "auto"
-    const char* base,        // "hex", "base64", "auto"
-    char* output, size_t output_len
-);
+int fossil_cryptic_rand_bytes(uint8_t *out, size_t len);
 
 #ifdef __cplusplus
 }
-#include <string>
 #include <vector>
-#include <array>
 #include <stdexcept>
 
-namespace fossil {
+namespace fossil::cryptic {
 
-    namespace cryptic {
-
-        class Rand {
-        public:
-            /**
-             * @brief Generates a random value using the specified algorithm, bit width, base, and optional seed.
-             *
-             * @param algorithm
-             *      The random number generation algorithm to use. Supported values include:
-             *      - "lcg", "xor", "mix", "auto"
-             * @param bits
-             *      The bit width of the output random value. Supported values:
-             *      - "u32", "u64", "auto"
-             * @param base
-             *      The output encoding/base for the random string. Supported values:
-             *      - "hex", "base64", "auto"
-             * @return
-             *      The resulting random string.
-             * @throws std::invalid_argument on invalid parameters.
-             * @throws std::runtime_error on random generation errors.
-             */
-            static std::string compute(
-            const std::string& algorithm,
-            const std::string& bits,
-            const std::string& base
-            ) {
-            // Validate input parameters
-            if (algorithm.empty() || bits.empty() || base.empty()) {
-                throw std::invalid_argument("Algorithm, bits, and base must not be empty");
+    class Rand {
+    public:
+        /**
+         * Fill a buffer with cryptographically secure random bytes.
+         * Uses the best available OS CSPRNG.
+         *
+         * @param out  Output buffer
+         * @param len  Number of bytes to generate
+         * 
+         * @throws std::runtime_error if the underlying C function fails
+         */
+        static void bytes(uint8_t *out, size_t len) {
+            if (fossil_cryptic_rand_bytes(out, len) != 0) {
+                throw std::runtime_error("fossil_cryptic_rand_bytes failed");
             }
+        }
 
-            // Supported values
-            static const std::vector<std::string> valid_algorithms = {"lcg", "xor", "mix", "auto"};
-            static const std::vector<std::string> valid_bits = {"u32", "u64", "auto"};
-            static const std::vector<std::string> valid_bases = {"hex", "base64", "auto"};
+        /**
+         * Generate a vector of cryptographically secure random bytes.
+         * Uses the best available OS CSPRNG.
+         *
+         * @param len  Number of bytes to generate
+         * 
+         * @return     A vector containing the generated random bytes
+         * 
+         * @throws std::runtime_error if the underlying C function fails
+         */
+        static std::vector<uint8_t> bytes(size_t len) {
+            std::vector<uint8_t> v(len);
+            bytes(v.data(), len);
+            return v;
+        }
+    };
 
-            auto is_valid = [](const std::string& val, const std::vector<std::string>& allowed) {
-                return std::find(allowed.begin(), allowed.end(), val) != allowed.end();
-            };
-
-            if (!is_valid(algorithm, valid_algorithms)) {
-                throw std::invalid_argument("Unsupported algorithm: " + algorithm);
-            }
-            if (!is_valid(bits, valid_bits)) {
-                throw std::invalid_argument("Unsupported bits: " + bits);
-            }
-            if (!is_valid(base, valid_bases)) {
-                throw std::invalid_argument("Unsupported base: " + base);
-            }
-
-            std::array<char, 128> buffer{};
-            int result = fossil_cryptic_rand_compute(
-                algorithm.c_str(),
-                bits.c_str(),
-                base.c_str(),
-                buffer.data(),
-                buffer.size()
-            );
-            if (result != 0) {
-                throw std::runtime_error("Random value generation failed");
-            }
-            // Defensive: ensure null-terminated and trim at first null
-            size_t length = 0;
-            while (length < buffer.size() && buffer[length] != '\0') {
-                ++length;
-            }
-            return std::string(buffer.data(), length);
-            }
-        };
-
-    } // namespace cryptic
-
-} // namespace fossil
+} // namespace fossil::cryptic
 
 #endif
 
-#endif /* FOSSIL_CRYPTIC_HASH_H */
+#endif /* FOSSIL_CRYPTIC_RAND_H */

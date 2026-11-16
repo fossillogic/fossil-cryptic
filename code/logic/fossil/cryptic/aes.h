@@ -32,8 +32,8 @@
 extern "C" {
 #endif
 
-/** Encrypt plaintext using AES-256-GCM with a 12-byte nonce and append a 16-byte authentication tag to ciphertext.
- * The ciphertext buffer must hold at least text_len + 16 bytes.
+/**
+ * @brief Encrypt with AES-256-GCM.
  * 
  * @param ciphertext Pointer to the buffer where the encrypted data will be stored.
  * @param key Pointer to the 32-byte encryption key.
@@ -43,19 +43,20 @@ extern "C" {
  * @param plaintext Pointer to the plaintext data to be encrypted.
  * @param text_len Length of the plaintext data.
  * 
- * @return 0 on success or -1 on invalid arguments.
+ * @return 0 on success, -1 on invalid arguments.
+ * 
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Aes::encrypt instead.
  */
 int fossil_cryptic_aes_gcm_encrypt(
     uint8_t *ciphertext,
     const uint8_t key[32],
     const uint8_t nonce[12],
     const uint8_t *ad, size_t ad_len,
-    const uint8_t *plaintext, size_t text_len
-);
+    const uint8_t *plaintext, size_t text_len);
 
-/** Decrypt ciphertext using AES-256-GCM with a 12-byte nonce and its trailing 16-byte authentication tag.
- * text_len is the encrypted payload length, excluding the tag.
- *
+/**
+ * @brief Decrypt with AES-256-GCM.
+ * 
  * @param plaintext Pointer to the buffer where the decrypted data will be stored.
  * @param key Pointer to the 32-byte decryption key.
  * @param nonce Pointer to the 12-byte nonce.
@@ -63,96 +64,71 @@ int fossil_cryptic_aes_gcm_encrypt(
  * @param ad_len Length of the additional authenticated data.
  * @param ciphertext Pointer to the ciphertext data to be decrypted.
  * @param text_len Length of the ciphertext data, excluding the tag.
- *
- * @return 0 on success or -1 on invalid arguments/authentication failure.
+ * 
+ * @return 0 on success, -1 on invalid arguments or authentication failure.
+ * 
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Aes::decrypt instead.
  */
 int fossil_cryptic_aes_gcm_decrypt(
     uint8_t *plaintext,
     const uint8_t key[32],
     const uint8_t nonce[12],
     const uint8_t *ad, size_t ad_len,
-    const uint8_t *ciphertext, size_t text_len
-);
+    const uint8_t *ciphertext, size_t text_len);
 
 #ifdef __cplusplus
 }
-namespace fossil {
+namespace fossil::cryptic {
 
-    namespace cryptic {
+    class Aes {
+    public:
+        /**
+         * @brief Encrypts the given plaintext with the provided key, nonce, and additional authenticated data (AAD) using AES-256-GCM.
+         *
+         * @param ciphertext Pointer to the buffer where the encrypted data will be stored.
+         * @param key Pointer to the 32-byte encryption key.
+         * @param nonce Pointer to the 12-byte nonce.
+         * @param ad Pointer to the additional authenticated data (AAD).
+         * @param ad_len Length of the additional authenticated data.
+         * @param plaintext Pointer to the plaintext data to be encrypted.
+         * @param text_len Length of the plaintext data.
+         *
+         * @return 0 on success or -1 on invalid arguments.
+         */
+        static int encrypt(uint8_t *ciphertext,
+                        const uint8_t key[32],
+                        const uint8_t nonce[12],
+                        const uint8_t *ad, size_t ad_len,
+                        const uint8_t *plaintext, size_t text_len)
+        {
+            return fossil_cryptic_aes_gcm_encrypt(ciphertext, key, nonce, ad, ad_len, plaintext, text_len);
+        }
 
         /**
-         * @class Aes
-         * @brief C++ wrapper for authenticated encryption logic in the Fossil Cryptic project.
+         * @brief Decrypts the given ciphertext with the provided key, nonce, and additional authenticated data (AAD) using AES-256-GCM.
          *
-         * The Aes class provides C++-friendly wrappers for the C API.
+         * @param plaintext Pointer to the buffer where the decrypted data will be stored.
+         * @param key Pointer to the 32-byte decryption key.
+         * @param nonce Pointer to the 12-byte nonce.
+         * @param ad Pointer to the additional authenticated data (AAD).
+         * @param ad_len Length of the additional authenticated data.
+         * @param ciphertext Pointer to the ciphertext data to be decrypted.
+         * @param text_len Length of the ciphertext data, excluding the tag.
          *
-         * Usage example:
-         * @code
-         *     uint8_t ciphertext[sizeof(plaintext) + 16];
-         *     fossil::cryptic::Aes::encrypt(ciphertext, key, nonce, nullptr, 0,
-         *                                    plaintext, sizeof(plaintext));
-         * @endcode
-         *
-         * @note
-         * This class is intended for use in C++ environments only. For C code,
-         * use fossil_cryptic_aes_gcm_encrypt and fossil_cryptic_aes_gcm_decrypt directly.
+         * @return 0 on success, -1 on invalid arguments or authentication failure.
          */
-        class Aes {
-        public:
-            /**
-             * @brief Encrypts the given plaintext with the provided key, nonce, and additional authenticated data (AAD).
-             *
-             * @param ciphertext Pointer to the output buffer, which must hold at least text_len + 16 bytes.
-             * @param key Pointer to the 32-byte encryption key.
-             * @param nonce Pointer to the 12-byte nonce.
-             * @param ad Pointer to the additional authenticated data (AAD).
-             * @param ad_len Length of the additional authenticated data.
-             * @param plaintext Pointer to the plaintext data to be encrypted.
-             * @param text_len Length of the plaintext data.
-             *
-             * @return 0 on success or -1 on invalid arguments. The 16-byte authentication tag is
-             *         appended to the ciphertext.
-             */
-            static int encrypt(
-                uint8_t *ciphertext,
-                const uint8_t key[32],
-                const uint8_t nonce[12],
-                const uint8_t *ad, size_t ad_len,
-                const uint8_t *plaintext, size_t text_len)
-            {
-                return fossil_cryptic_aes_gcm_encrypt(
-                    ciphertext, key, nonce, ad, ad_len, plaintext, text_len);
-            }
+        static int decrypt(uint8_t *plaintext,
+                        const uint8_t key[32],
+                        const uint8_t nonce[12],
+                        const uint8_t *ad, size_t ad_len,
+                        const uint8_t *ciphertext, size_t text_len)
+        {
+            return fossil_cryptic_aes_gcm_decrypt(plaintext, key, nonce, ad, ad_len, ciphertext, text_len);
+        }
+    };
 
-            /**
-             * @brief Decrypts the given ciphertext with the provided key, nonce, and additional authenticated data (AAD).
-             *
-             * @param plaintext Pointer to the buffer where the decrypted data will be stored.
-             * @param key Pointer to the 32-byte decryption key.
-             * @param nonce Pointer to the 12-byte nonce.
-             * @param ad Pointer to the additional authenticated data (AAD).
-             * @param ad_len Length of the additional authenticated data.
-             * @param ciphertext Pointer to the ciphertext followed by its 16-byte authentication tag.
-             * @param text_len Length of the encrypted payload, excluding the tag.
-             *
-             * @return 0 on success or -1 on invalid arguments/authentication failure.
-             */
-            static int decrypt(
-                uint8_t *plaintext,
-                const uint8_t key[32],
-                const uint8_t nonce[12],
-                const uint8_t *ad, size_t ad_len,
-                const uint8_t *ciphertext, size_t text_len)
-            {
-                return fossil_cryptic_aes_gcm_decrypt(
-                    plaintext, key, nonce, ad, ad_len, ciphertext, text_len);
-            }
-        };
-
-    } // namespace cryptic
-
-} // namespace fossil
+} // namespace cryptic::fossil
 
 #endif
 
-#endif /* FOSSIL_CRYPTIC_AEAD_H */
+#endif /* FOSSIL_CRYPTIC_AES_H */
