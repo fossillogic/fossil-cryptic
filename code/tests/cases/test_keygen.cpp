@@ -51,89 +51,39 @@ FOSSIL_TEARDOWN(cpp_keygen_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST(cpp_test_keygen_compute_basicpp_fnv_hex_u32) {
-    // Basic FNV keygen, hex, u32
-    std::string key = fossil::cryptic::Keygen::compute("fnv", "u32", "hex", "hello");
-    ASSUME_ITS_TRUE(key.length() == 8); // 8 hex digits for u32
+FOSSIL_TEST(cpp_test_keygen_hkdf_sha256) {
+    const uint8_t ikm[] = {0x0b, 0x0b, 0x0b, 0x0b};
+    const uint8_t salt[] = {0x00, 0x01, 0x02, 0x03};
+    const uint8_t info[] = {0xf0, 0xf1, 0xf2};
+
+    const auto key = fossil::cryptic::Keygen::hkdf_sha256(
+        ikm, sizeof(ikm), salt, sizeof(salt), info, sizeof(info), 32);
+    const auto repeated_key = fossil::cryptic::Keygen::hkdf_sha256(
+        ikm, sizeof(ikm), salt, sizeof(salt), info, sizeof(info), 32);
+
+    ASSUME_ITS_TRUE(key.size() == 32);
+    ASSUME_ITS_TRUE(key == repeated_key);
 }
 
-FOSSIL_TEST(cpp_test_keygen_compute_basicpp_fnv_hex_u64) {
-    // Basic FNV keygen, hex, u64
-    std::string key = fossil::cryptic::Keygen::compute("fnv", "u64", "hex", "hello");
-    ASSUME_ITS_TRUE(key.length() == 16); // 16 hex digits for u64
-}
+FOSSIL_TEST(cpp_test_keygen_pbkdf2_sha256) {
+    const uint8_t password[] = {'p', 'a', 's', 's'};
+    const uint8_t salt[] = {'s', 'a', 'l', 't'};
 
-FOSSIL_TEST(cpp_test_keygen_compute_crcpp_base64_u32) {
-    // CRC keygen, base64, u32
-    std::string key = fossil::cryptic::Keygen::compute("crc", "u32", "base64", "seed");
-    ASSUME_ITS_TRUE(key.length() > 0);
-}
+    const auto key = fossil::cryptic::Keygen::pbkdf2_sha256(
+        password, sizeof(password), salt, sizeof(salt), 1000, 32);
+    const auto repeated_key = fossil::cryptic::Keygen::pbkdf2_sha256(
+        password, sizeof(password), salt, sizeof(salt), 1000, 32);
 
-FOSSIL_TEST(cpp_test_keygen_compute_mix_auto_auto) {
-    // Mix algorithm, auto bits, auto base
-    std::string key = fossil::cryptic::Keygen::compute("mix", "auto", "auto", "longseedvalue");
-    ASSUME_ITS_TRUE(key.length() > 0);
-}
-
-FOSSIL_TEST(cpp_test_keygen_compute_null_arguments) {
-    // Should throw with null arguments
-    try {
-        fossil::cryptic::Keygen::compute("", "u32", "hex", "seed");
-        ASSUME_ITS_TRUE(false); // Should not reach here
-    } catch (...) {
-        ASSUME_ITS_TRUE(true);
-    }
-    try {
-        fossil::cryptic::Keygen::compute("fnv", "", "hex", "seed");
-        ASSUME_ITS_TRUE(false);
-    } catch (...) {
-        ASSUME_ITS_TRUE(true);
-    }
-    try {
-        fossil::cryptic::Keygen::compute("fnv", "u32", "", "seed");
-        ASSUME_ITS_TRUE(false);
-    } catch (...) {
-        ASSUME_ITS_TRUE(true);
-    }
-    try {
-        fossil::cryptic::Keygen::compute("fnv", "u32", "hex", "");
-        ASSUME_ITS_TRUE(false);
-    } catch (...) {
-        ASSUME_ITS_TRUE(true);
-    }
-}
-
-FOSSIL_TEST(cpp_test_keygen_compute_unsupported_algorithm) {
-    // Unsupported algorithm should throw
-    try {
-        fossil::cryptic::Keygen::compute("unknown", "u32", "hex", "seed");
-        ASSUME_ITS_TRUE(false);
-    } catch (const std::runtime_error&) {
-        ASSUME_ITS_TRUE(true);
-    }
-}
-
-FOSSIL_TEST(cpp_test_keygen_compute_unsupported_base) {
-    // Unsupported base should throw
-    try {
-        fossil::cryptic::Keygen::compute("fnv", "u32", "octal", "seed");
-        ASSUME_ITS_TRUE(false);
-    } catch (const std::runtime_error&) {
-        ASSUME_ITS_TRUE(true);
-    }
+    ASSUME_ITS_TRUE(key.size() == 32);
+    ASSUME_ITS_TRUE(key == repeated_key);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_keygen_tests) {
-    FOSSIL_ADD_TEST(cpp_keygen_fixture, cpp_test_keygen_compute_basicpp_fnv_hex_u32);
-    FOSSIL_ADD_TEST(cpp_keygen_fixture, cpp_test_keygen_compute_basicpp_fnv_hex_u64);
-    FOSSIL_ADD_TEST(cpp_keygen_fixture, cpp_test_keygen_compute_crcpp_base64_u32);
-    FOSSIL_ADD_TEST(cpp_keygen_fixture, cpp_test_keygen_compute_mix_auto_auto);
-    FOSSIL_ADD_TEST(cpp_keygen_fixture, cpp_test_keygen_compute_null_arguments);
-    FOSSIL_ADD_TEST(cpp_keygen_fixture, cpp_test_keygen_compute_unsupported_algorithm);
-    FOSSIL_ADD_TEST(cpp_keygen_fixture, cpp_test_keygen_compute_unsupported_base);
+    FOSSIL_ADD_TEST(cpp_keygen_fixture, cpp_test_keygen_hkdf_sha256);
+    FOSSIL_ADD_TEST(cpp_keygen_fixture, cpp_test_keygen_pbkdf2_sha256);
 
     FOSSIL_ADD_SUITE(cpp_keygen_fixture);
 } // end of tests

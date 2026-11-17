@@ -62,7 +62,7 @@ FOSSIL_TEST(cpp_test_aead_encrypt_decrypt_roundtrip) {
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::encrypt(
         ciphertext, key, nonce, ad, sizeof(ad), plaintext, sizeof(plaintext)), 0);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::decrypt(
-        decrypted, key, nonce, ad, sizeof(ad), ciphertext, sizeof(plaintext)), 0);
+        decrypted, key, nonce, ad, sizeof(ad), ciphertext, sizeof(ciphertext)), 0);
     ASSUME_ITS_TRUE(memcmp(decrypted, plaintext, sizeof(plaintext)) == 0);
 }
 
@@ -93,15 +93,15 @@ FOSSIL_TEST(cpp_test_aead_decrypt_null_params) {
     uint8_t plaintext[1];
 
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::decrypt(
-        nullptr, key, nonce, ad, sizeof(ad), ciphertext, 1), -1);
+        nullptr, key, nonce, ad, sizeof(ad), ciphertext, sizeof(ciphertext)), -1);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::decrypt(
-        plaintext, nullptr, nonce, ad, sizeof(ad), ciphertext, 1), -1);
+        plaintext, nullptr, nonce, ad, sizeof(ad), ciphertext, sizeof(ciphertext)), -1);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::decrypt(
-        plaintext, key, nullptr, ad, sizeof(ad), ciphertext, 1), -1);
+        plaintext, key, nullptr, ad, sizeof(ad), ciphertext, sizeof(ciphertext)), -1);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::decrypt(
-        plaintext, key, nonce, nullptr, sizeof(ad), ciphertext, 1), -1);
+        plaintext, key, nonce, nullptr, sizeof(ad), ciphertext, sizeof(ciphertext)), -1);
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::decrypt(
-        plaintext, key, nonce, ad, sizeof(ad), nullptr, 1), -1);
+        plaintext, key, nonce, ad, sizeof(ad), nullptr, sizeof(ciphertext)), -1);
 }
 
 FOSSIL_TEST(cpp_test_aead_decrypt_rejects_modified_tag) {
@@ -116,7 +116,7 @@ FOSSIL_TEST(cpp_test_aead_decrypt_rejects_modified_tag) {
         ciphertext, key, nonce, ad, sizeof(ad), plaintext, sizeof(plaintext)), 0);
     ciphertext[sizeof(plaintext)] ^= 0x01;
     ASSUME_ITS_EQUAL_I32(fossil::cryptic::Aead::decrypt(
-        decrypted, key, nonce, ad, sizeof(ad), ciphertext, sizeof(plaintext)), -1);
+        decrypted, key, nonce, ad, sizeof(ad), ciphertext, sizeof(ciphertext)), -1);
 }
 
 

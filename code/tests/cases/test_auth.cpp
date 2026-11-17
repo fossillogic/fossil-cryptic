@@ -24,6 +24,8 @@
  */
 #include <fossil/maip/framework.h>
 #include "fossil/cryptic/framework.h"
+#include <array>
+#include <cstdint>
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
@@ -51,100 +53,35 @@ FOSSIL_TEARDOWN(cpp_auth_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST(cpp_test_auth_compute_null_params) {
-    // Should fail with any null parameter
-    char output[128];
-    int rc;
+FOSSIL_TEST(cpp_test_auth_hmac_sha256) {
+    const uint8_t key[] = {'k', 'e', 'y'};
+    const char message[] = "The quick brown fox jumps over the lazy dog";
+    const std::array<uint8_t, 32> expected = {
+        0xf7, 0xbc, 0x83, 0xf4, 0x30, 0x53, 0x84, 0x24,
+        0xb1, 0x32, 0x98, 0xe6, 0xaa, 0x6f, 0xb1, 0x43,
+        0xef, 0x4d, 0x59, 0xa1, 0x49, 0x46, 0x17, 0x59,
+        0x97, 0x47, 0x9d, 0xbc, 0x2d, 0x1a, 0x3c, 0xd8
+    };
 
-    rc = fossil_cryptic_auth_compute(NULL, "u64", "hex", "key", "data", 4, output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -1);
-
-    rc = fossil_cryptic_auth_compute("hmac-sha256", NULL, "hex", "key", "data", 4, output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -1);
-
-    rc = fossil_cryptic_auth_compute("hmac-sha256", "u64", NULL, "key", "data", 4, output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -1);
-
-    rc = fossil_cryptic_auth_compute("hmac-sha256", "u64", "hex", NULL, "data", 4, output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -1);
-
-    rc = fossil_cryptic_auth_compute("hmac-sha256", "u64", "hex", "key", NULL, 4, output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -1);
-
-    rc = fossil_cryptic_auth_compute("hmac-sha256", "u64", "hex", "key", "data", 4, NULL, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -1);
+    const auto actual = fossil::cryptic::Auth::hmac_sha256(
+        key, sizeof(key), message, sizeof(message) - 1);
+    for (size_t i = 0; i < expected.size(); ++i)
+        ASSUME_ITS_TRUE(actual[i] == expected[i]);
 }
 
-FOSSIL_TEST(cpp_test_auth_compute_output_buffer_too_small) {
-    // Output buffer too small should fail
-    const char *algorithm = "hmac-sha256";
-    const char *bits = "u64";
-    const char *base = "hex";
-    const char *key = "key";
-    const char *input = "input";
-    char output[1];
+FOSSIL_TEST(cpp_test_auth_hmac_blake2b_512) {
+    const uint8_t key[] = {'k', 'e', 'y'};
+    const char message[] = "data";
 
-    int rc = fossil_cryptic_auth_compute(
-        algorithm, bits, base,
-        key,
-        input, strlen(input),
-        output, sizeof(output)
-    );
-    ASSUME_ITS_TRUE(rc != 0);
-}
+    const auto first = fossil::cryptic::Auth::hmac_blake2b_512(
+        key, sizeof(key), message, sizeof(message) - 1);
+    const auto second = fossil::cryptic::Auth::hmac_blake2b_512(
+        key, sizeof(key), message, sizeof(message) - 1);
 
-FOSSIL_TEST(cpp_test_auth_compute_invalid_algorithm) {
-    // Invalid algorithm should fail
-    const char *algorithm = "invalid-algo";
-    const char *bits = "u64";
-    const char *base = "hex";
-    const char *key = "key";
-    const char *input = "input";
-    char output[128];
-
-    int rc = fossil_cryptic_auth_compute(
-        algorithm, bits, base,
-        key,
-        input, strlen(input),
-        output, sizeof(output)
-    );
-    ASSUME_ITS_TRUE(rc != 0);
-}
-
-FOSSIL_TEST(cpp_test_auth_compute_invalid_bits) {
-    // Invalid bits should fail
-    const char *algorithm = "hmac-sha256";
-    const char *bits = "invalid-bits";
-    const char *base = "hex";
-    const char *key = "key";
-    const char *input = "input";
-    char output[128];
-
-    int rc = fossil_cryptic_auth_compute(
-        algorithm, bits, base,
-        key,
-        input, strlen(input),
-        output, sizeof(output)
-    );
-    ASSUME_ITS_TRUE(rc != 0);
-}
-
-FOSSIL_TEST(cpp_test_auth_compute_invalid_base) {
-    // Invalid base should fail
-    const char *algorithm = "hmac-sha256";
-    const char *bits = "u64";
-    const char *base = "invalid-base";
-    const char *key = "key";
-    const char *input = "input";
-    char output[128];
-
-    int rc = fossil_cryptic_auth_compute(
-        algorithm, bits, base,
-        key,
-        input, strlen(input),
-        output, sizeof(output)
-    );
-    ASSUME_ITS_TRUE(rc != 0);
+    for (size_t i = 0; i < first.size(); ++i) {
+        ASSUME_ITS_TRUE(first[i] == second[i]);
+        ASSUME_ITS_TRUE(first[i] != 0);
+    }
 }
 
 
@@ -152,11 +89,8 @@ FOSSIL_TEST(cpp_test_auth_compute_invalid_base) {
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(cpp_auth_tests) {
-    FOSSIL_ADD_TEST(cpp_auth_fixture, cpp_test_auth_compute_null_params);
-    FOSSIL_ADD_TEST(cpp_auth_fixture, cpp_test_auth_compute_output_buffer_too_small);
-    FOSSIL_ADD_TEST(cpp_auth_fixture, cpp_test_auth_compute_invalid_algorithm);
-    FOSSIL_ADD_TEST(cpp_auth_fixture, cpp_test_auth_compute_invalid_bits);
-    FOSSIL_ADD_TEST(cpp_auth_fixture, cpp_test_auth_compute_invalid_base);
+    FOSSIL_ADD_TEST(cpp_auth_fixture, cpp_test_auth_hmac_sha256);
+    FOSSIL_ADD_TEST(cpp_auth_fixture, cpp_test_auth_hmac_blake2b_512);
 
     FOSSIL_ADD_SUITE(cpp_auth_fixture);
 } // end of tests

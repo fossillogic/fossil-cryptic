@@ -24,117 +24,145 @@
  */
 #include "fossil/cryptic/auth.h"
 #include "fossil/cryptic/hash.h"
-#include <stdio.h>
-#include <stdlib.h>
+#include "fossil/cryptic/util.h"
 #include <string.h>
+#include <stdlib.h>
 
-// HMAC block size for 64-bit hash (max 64 bytes)
-#define HMAC_BLOCK_SIZE 64
+#define SHA256_BLOCK 64
+#define BLAKE2B_BLOCK 128
 
-int fossil_cryptic_auth_compute(
-    const char* algorithm,
-    const char* bits,
-    const char* base,
-    const char* key,
-    const void* input, size_t input_len,
-    char* output, size_t output_len
-) {
-    if (!algorithm || !bits || !base || !key || (!input && input_len != 0) || !output)
+int fossil_cryptic_auth_hmac_sha256(
+    const uint8_t *key, size_t key_len,
+    const void *msg, size_t msg_len,
+    uint8_t out[32])
+{
+    if (!out)
+        return -1;
+    if (key_len && !key)
+        return -1;
+    if (msg_len && !msg)
         return -1;
 
-    size_t key_len = strlen(key);
-    uint8_t k_ipad[HMAC_BLOCK_SIZE];
-    uint8_t k_opad[HMAC_BLOCK_SIZE];
-    uint8_t key_hash[HMAC_BLOCK_SIZE];
-    char key_hash_str[2 * HMAC_BLOCK_SIZE + 1];
-    size_t hash_size = 0;
+    uint8_t k[SHA256_BLOCK];
+    uint8_t ipad[SHA256_BLOCK];
+    uint8_t opad[SHA256_BLOCK];
+    uint8_t tk[32];
 
-    if (output_len < 2 || input_len > (size_t)-1 - HMAC_BLOCK_SIZE)
-        return -1;
+    memset(k, 0, SHA256_BLOCK);
 
-    if (strcmp(bits, "u64") == 0) hash_size = 8;
-    else if (strcmp(bits, "u32") == 0) hash_size = 4;
-    else return -1;
-
-    // Step 1: If key > block size, hash it first
-    memset(key_hash, 0, sizeof(key_hash));
-    if (key_len > HMAC_BLOCK_SIZE) {
-        if (fossil_cryptic_hash_compute(algorithm, bits, "hex", key_hash_str, sizeof(key_hash_str), key, key_len) != 0)
+    if (key_len > SHA256_BLOCK)
+    {
+        if (fossil_cryptic_hash_sha256(key, key_len, tk) != 0)
             return -2;
-
-        // Convert the hex digest to bytes.
-        for (size_t i = 0; i < hash_size; i++) {
-            unsigned char hi = (unsigned char)key_hash_str[i * 2];
-            unsigned char lo = (unsigned char)key_hash_str[i * 2 + 1];
-            unsigned int h = hi >= '0' && hi <= '9' ? hi - '0' :
-                             hi >= 'a' && hi <= 'f' ? hi - 'a' + 10 :
-                             hi >= 'A' && hi <= 'F' ? hi - 'A' + 10 : 16;
-            unsigned int l = lo >= '0' && lo <= '9' ? lo - '0' :
-                             lo >= 'a' && lo <= 'f' ? lo - 'a' + 10 :
-                             lo >= 'A' && lo <= 'F' ? lo - 'A' + 10 : 16;
-            if (h > 15 || l > 15)
-                return -2;
-            key_hash[i] = (uint8_t)((h << 4) | l);
-        }
-    } else {
-        memcpy(key_hash, key, key_len);
+        memcpy(k, tk, 32);
+        fossil_cryptic_util_wipe(tk, sizeof(tk));
+    }
+    else
+    {
+        memcpy(k, key, key_len);
     }
 
-    // Step 2: Prepare inner and outer padded keys
-    memset(k_ipad, 0x36, HMAC_BLOCK_SIZE);
-    memset(k_opad, 0x5c, HMAC_BLOCK_SIZE);
-    for (size_t i = 0; i < HMAC_BLOCK_SIZE; i++) {
-        k_ipad[i] ^= key_hash[i];
-        k_opad[i] ^= key_hash[i];
+    for (int i = 0; i < SHA256_BLOCK; i++)
+    {
+        ipad[i] = k[i] ^ 0x36;
+        opad[i] = k[i] ^ 0x5c;
     }
 
-    // Step 3: Compute inner hash: hash(inner_pad || input)
-    uint8_t* inner_buffer = (uint8_t*)malloc(HMAC_BLOCK_SIZE + input_len);
-    if (!inner_buffer) return -5;
-    memcpy(inner_buffer, k_ipad, HMAC_BLOCK_SIZE);
-    if (input_len != 0)
-        memcpy(inner_buffer + HMAC_BLOCK_SIZE, input, input_len);
+    /* inner = H(ipad || msg) */
+    uint8_t *inner = (uint8_t *)malloc(SHA256_BLOCK + msg_len);
+    if (!inner)
+        return -5;
+    memcpy(inner, ipad, SHA256_BLOCK);
+    if (msg_len)
+        memcpy(inner + SHA256_BLOCK, msg, msg_len);
 
-    char inner_hash_str[2 * HMAC_BLOCK_SIZE + 1];
-    memset(inner_hash_str, 0, sizeof(inner_hash_str));
-    if (fossil_cryptic_hash_compute(algorithm, bits, "hex", inner_hash_str, sizeof(inner_hash_str),
-                             inner_buffer, HMAC_BLOCK_SIZE + input_len) != 0) {
-        free(inner_buffer);
+    uint8_t inner_hash[32];
+    if (fossil_cryptic_hash_sha256(inner, SHA256_BLOCK + msg_len, inner_hash) != 0)
+    {
+        free(inner);
         return -3;
     }
-    free(inner_buffer);
+    free(inner);
 
-    // Convert inner hash string to bytes
-    uint8_t inner_hash_bytes[HMAC_BLOCK_SIZE];
-    for (size_t i = 0; i < hash_size; i++) {
-        unsigned char hi = (unsigned char)inner_hash_str[i * 2];
-        unsigned char lo = (unsigned char)inner_hash_str[i * 2 + 1];
-        unsigned int h = hi >= '0' && hi <= '9' ? hi - '0' :
-                         hi >= 'a' && hi <= 'f' ? hi - 'a' + 10 :
-                         hi >= 'A' && hi <= 'F' ? hi - 'A' + 10 : 16;
-        unsigned int l = lo >= '0' && lo <= '9' ? lo - '0' :
-                         lo >= 'a' && lo <= 'f' ? lo - 'a' + 10 :
-                         lo >= 'A' && lo <= 'F' ? lo - 'A' + 10 : 16;
-        if (h > 15 || l > 15)
-            return -3;
-        inner_hash_bytes[i] = (uint8_t)((h << 4) | l);
+    /* outer = H(opad || inner_hash) */
+    uint8_t outer[SHA256_BLOCK + 32];
+    memcpy(outer, opad, SHA256_BLOCK);
+    memcpy(outer + SHA256_BLOCK, inner_hash, 32);
+
+    int rc = fossil_cryptic_hash_sha256(outer, SHA256_BLOCK + 32, out);
+
+    fossil_cryptic_util_wipe(k, sizeof(k));
+    fossil_cryptic_util_wipe(ipad, sizeof(ipad));
+    fossil_cryptic_util_wipe(opad, sizeof(opad));
+    fossil_cryptic_util_wipe(inner_hash, sizeof(inner_hash));
+    fossil_cryptic_util_wipe(outer, sizeof(outer));
+
+    return rc;
+}
+
+int fossil_cryptic_auth_hmac_blake2b_512(
+    const uint8_t *key, size_t key_len,
+    const void *msg, size_t msg_len,
+    uint8_t out[64])
+{
+    if (!out)
+        return -1;
+    if (key_len && !key)
+        return -1;
+    if (msg_len && !msg)
+        return -1;
+
+    uint8_t k[BLAKE2B_BLOCK];
+    uint8_t ipad[BLAKE2B_BLOCK];
+    uint8_t opad[BLAKE2B_BLOCK];
+    uint8_t tk[64];
+
+    memset(k, 0, BLAKE2B_BLOCK);
+
+    if (key_len > BLAKE2B_BLOCK)
+    {
+        if (fossil_cryptic_hash_blake2b_512(key, key_len, tk) != 0)
+            return -2;
+        memcpy(k, tk, 64);
+        fossil_cryptic_util_wipe(tk, sizeof(tk));
+    }
+    else
+    {
+        memcpy(k, key, key_len);
     }
 
-    // Step 4: Compute outer hash: hash(outer_pad || inner_hash)
-    uint8_t outer_buffer[HMAC_BLOCK_SIZE + HMAC_BLOCK_SIZE];
-    memcpy(outer_buffer, k_opad, HMAC_BLOCK_SIZE);
-    memcpy(outer_buffer + HMAC_BLOCK_SIZE, inner_hash_bytes, hash_size);
+    for (int i = 0; i < BLAKE2B_BLOCK; i++)
+    {
+        ipad[i] = k[i] ^ 0x36;
+        opad[i] = k[i] ^ 0x5c;
+    }
 
-    // Final HMAC
-    int rc = fossil_cryptic_hash_compute(
-        algorithm, bits, base, output, output_len,
-        outer_buffer, HMAC_BLOCK_SIZE + hash_size
-    );
-    if (rc != 0) return rc;
+    uint8_t *inner = (uint8_t *)malloc(BLAKE2B_BLOCK + msg_len);
+    if (!inner)
+        return -5;
+    memcpy(inner, ipad, BLAKE2B_BLOCK);
+    if (msg_len)
+        memcpy(inner + BLAKE2B_BLOCK, msg, msg_len);
 
-    // The hash API returns encoded text; reject missing or unterminated output.
-    if (!memchr(output, '\0', output_len) || output[0] == '\0')
-        return -6;
+    uint8_t inner_hash[64];
+    if (fossil_cryptic_hash_blake2b_512(inner, BLAKE2B_BLOCK + msg_len, inner_hash) != 0)
+    {
+        free(inner);
+        return -3;
+    }
+    free(inner);
 
-    return 0;
+    uint8_t outer[BLAKE2B_BLOCK + 64];
+    memcpy(outer, opad, BLAKE2B_BLOCK);
+    memcpy(outer + BLAKE2B_BLOCK, inner_hash, 64);
+
+    int rc = fossil_cryptic_hash_blake2b_512(outer, BLAKE2B_BLOCK + 64, out);
+
+    fossil_cryptic_util_wipe(k, sizeof(k));
+    fossil_cryptic_util_wipe(ipad, sizeof(ipad));
+    fossil_cryptic_util_wipe(opad, sizeof(opad));
+    fossil_cryptic_util_wipe(inner_hash, sizeof(inner_hash));
+    fossil_cryptic_util_wipe(outer, sizeof(outer));
+
+    return rc;
 }

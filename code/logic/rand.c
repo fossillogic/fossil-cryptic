@@ -23,10 +23,7 @@
  * -----------------------------------------------------------------------------
  */
 #include "fossil/cryptic/rand.h"
-#include <stdint.h>
 #include <string.h>
-#include <stdio.h>
-#include <stddef.h>
 #include <limits.h>
 
 #if defined(_WIN32)
@@ -40,135 +37,91 @@
 #include <unistd.h>
 #endif
 
-// ===========================================================
-// Operating-system cryptographic entropy
-// ===========================================================
-static int secure_random_bytes(uint8_t* out, size_t len) {
+static int secure_random_bytes(uint8_t *out, size_t len)
+{
 #if defined(_WIN32)
-    typedef LONG (WINAPI *bcrypt_gen_random_fn)(void*, unsigned char*, ULONG, ULONG);
+    typedef LONG(WINAPI * BCryptGenRandom_t)(void *, PUCHAR, ULONG, ULONG);
     HMODULE bcrypt = LoadLibraryA("bcrypt.dll");
-    if (!bcrypt) return -1;
+    if (!bcrypt)
+        return -1;
 
-    FARPROC proc = GetProcAddress(bcrypt, "BCryptGenRandom");
-    if (!proc) {
+    FARPROC gen_proc = GetProcAddress(bcrypt, "BCryptGenRandom");
+    if (!gen_proc)
+    {
         FreeLibrary(bcrypt);
         return -1;
     }
-    bcrypt_gen_random_fn gen_random = NULL;
-    memcpy(&gen_random, &proc, sizeof(gen_random));
 
-    /* BCRYPT_USE_SYSTEM_PREFERRED_RNG */
+    BCryptGenRandom_t gen;
+    memcpy(&gen, &gen_proc, sizeof(gen));
+
     size_t done = 0;
-    LONG status = 0;
-    while (done < len) {
+    while (done < len)
+    {
         size_t remaining = len - done;
-        ULONG chunk = remaining > (size_t)ULONG_MAX
-            ? ULONG_MAX : (ULONG)remaining;
-        status = gen_random(NULL, out + done, chunk, 0x00000002);
-        if (status < 0) break;
+        ULONG chunk = (remaining > (size_t)ULONG_MAX) ? ULONG_MAX : (ULONG)remaining;
+        /* BCRYPT_USE_SYSTEM_PREFERRED_RNG = 0x00000002 */
+        if (gen(NULL, out + done, chunk, 0x00000002) < 0)
+        {
+            FreeLibrary(bcrypt);
+            return -1;
+        }
         done += chunk;
     }
     FreeLibrary(bcrypt);
-    return status >= 0 && done == len ? 0 : -1;
+    return 0;
+
 #elif defined(__linux__)
     size_t done = 0;
-    while (done < len) {
+    while (done < len)
+    {
         ssize_t n = getrandom(out + done, len - done, 0);
-        if (n > 0) {
+        if (n > 0)
+        {
             done += (size_t)n;
-        } else if (n < 0 && errno == EINTR) {
+        }
+        else if (n < 0 && errno == EINTR)
+        {
             continue;
-        } else {
+        }
+        else
+        {
             return -1;
         }
     }
     return 0;
+
 #else
     int fd = open("/dev/urandom", O_RDONLY);
-    if (fd < 0) return -1;
+    if (fd < 0)
+        return -1;
 
     size_t done = 0;
-    while (done < len) {
+    while (done < len)
+    {
         ssize_t n = read(fd, out + done, len - done);
-        if (n > 0) {
+        if (n > 0)
+        {
             done += (size_t)n;
-        } else if (n < 0 && errno == EINTR) {
+        }
+        else if (n < 0 && errno == EINTR)
+        {
             continue;
-        } else {
+        }
+        else
+        {
             close(fd);
             return -1;
         }
     }
-
     close(fd);
     return 0;
 #endif
 }
 
-// ===========================================================
-// Base64 + Hex encoding helpers
-// ===========================================================
-static const char base64_chars[] =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-static void encode_base64(const uint8_t* data, size_t len, char* out) {
-    size_t i = 0, j = 0;
-    while (i < len) {
-        size_t remaining = len - i;
-        uint32_t a = data[i++];
-        uint32_t b = remaining > 1 ? data[i++] : 0;
-        uint32_t c = remaining > 2 ? data[i++] : 0;
-        uint32_t triple = (a << 16) | (b << 8) | c;
-
-        out[j++] = base64_chars[(triple >> 18) & 0x3F];
-        out[j++] = base64_chars[(triple >> 12) & 0x3F];
-        out[j++] = remaining > 1 ? base64_chars[(triple >> 6) & 0x3F] : '=';
-        out[j++] = remaining > 2 ? base64_chars[triple & 0x3F] : '=';
-    }
-    out[j] = '\0';
-}
-
-// ===========================================================
-// Main Entry Point
-// ===========================================================
-int fossil_cryptic_rand_compute(
-    const char* algorithm,
-    const char* bits,
-    const char* base,
-    char* output, size_t output_len
-) {
-    if (!algorithm || !bits || !base || !output) return -1;
-
-    /* Legacy algorithm names remain accepted, but all use OS CSPRNG entropy. */
-    if (strcmp(algorithm, "auto") != 0 && strcmp(algorithm, "csprng") != 0 &&
-        strcmp(algorithm, "secure") != 0 && strcmp(algorithm, "lcg") != 0 &&
-        strcmp(algorithm, "xor") != 0 && strcmp(algorithm, "mix") != 0)
-        return -2;
-
-    int use64;
-    if (strcmp(bits, "u64") == 0) use64 = 1;
-    else if (strcmp(bits, "u32") == 0) use64 = 0;
-    else if (strcmp(bits, "auto") == 0) use64 = (sizeof(void*) == 8);
-    else return -1;
-
-    size_t len = use64 ? 8 : 4;
-    uint8_t random_bytes[8];
-    if (secure_random_bytes(random_bytes, len) != 0) return -4;
-
-    // Encode output
-    if (strcmp(base, "hex") == 0 || strcmp(base, "auto") == 0) {
-        if (output_len < len * 2 + 1) return -5;
-        for (size_t i = 0; i < len; ++i)
-            snprintf(output + i * 2, output_len - i * 2, "%02x", random_bytes[i]);
-    }
-    else if (strcmp(base, "base64") == 0) {
-        size_t encoded_len = 4 * ((len + 2) / 3);
-        if (output_len < encoded_len + 1) return -5;
-        encode_base64(random_bytes, len, output);
-    }
-    else {
-        return -3; // unsupported base
-    }
-
-    return 0;
+int fossil_cryptic_rand_bytes(uint8_t *out, size_t len)
+{
+    if (!out || len == 0)
+        return -1;
+    return secure_random_bytes(out, len);
 }

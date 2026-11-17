@@ -32,8 +32,8 @@
 extern "C" {
 #endif
 
-/** Encrypt plaintext and append a 16-byte authentication tag to ciphertext.
- * The ciphertext buffer must hold at least text_len + 16 bytes.
+/**
+ * @brief Encrypt with XChaCha20-Poly1305.
  * 
  * @param ciphertext Pointer to the buffer where the encrypted data will be stored.
  * @param key Pointer to the 32-byte encryption key.
@@ -42,115 +42,96 @@ extern "C" {
  * @param ad_len Length of the additional authenticated data.
  * @param plaintext Pointer to the plaintext data to be encrypted.
  * @param text_len Length of the plaintext data.
+ *
+ * @return 0 on success, -1 on invalid arguments
  * 
- * @return 0 on success or -1 on invalid arguments.
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Aead::encrypt instead.
  */
 int fossil_cryptic_aead_encrypt(
     uint8_t *ciphertext,
     const uint8_t key[32],
     const uint8_t nonce[24],
     const uint8_t *ad, size_t ad_len,
-    const uint8_t *plaintext, size_t text_len
-);
+    const uint8_t *plaintext, size_t text_len);
 
-/** Decrypt ciphertext with its trailing 16-byte authentication tag.
- * text_len is the encrypted payload length, excluding the tag.
- *
+/**
+ * @brief Decrypt with XChaCha20-Poly1305.
+ * 
  * @param plaintext Pointer to the buffer where the decrypted data will be stored.
  * @param key Pointer to the 32-byte decryption key.
  * @param nonce Pointer to the 24-byte nonce.
  * @param ad Pointer to the additional authenticated data (AAD).
  * @param ad_len Length of the additional authenticated data.
  * @param ciphertext Pointer to the ciphertext data to be decrypted.
- * @param text_len Length of the ciphertext data, excluding the tag.
- *
- * @return 0 on success or -1 on invalid arguments/authentication failure.
+ * @param text_len Length of the ciphertext data.
+ * 
+ * @return 0 on success, -1 on invalid arguments or authentication failure
+ * 
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Aead::decrypt instead.
  */
 int fossil_cryptic_aead_decrypt(
     uint8_t *plaintext,
     const uint8_t key[32],
     const uint8_t nonce[24],
     const uint8_t *ad, size_t ad_len,
-    const uint8_t *ciphertext, size_t text_len
-);
+    const uint8_t *ciphertext, size_t text_len);
 
 #ifdef __cplusplus
 }
-namespace fossil {
+namespace fossil::cryptic {
 
-    namespace cryptic {
+    class Aead {
+    public:
+        /**
+         * @brief Encrypt with XChaCha20-Poly1305.
+         * 
+         * @param ciphertext Pointer to the buffer where the encrypted data will be stored.
+         * @param key Pointer to the 32-byte encryption key.
+         * @param nonce Pointer to the 24-byte nonce.
+         * @param ad Pointer to the additional authenticated data (AAD).
+         * @param ad_len Length of the additional authenticated data.
+         * @param plaintext Pointer to the plaintext data to be encrypted.
+         * @param text_len Length of the plaintext data.
+         *
+         * @return 0 on success, -1 on invalid arguments
+         * 
+         * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Aead::encrypt instead.
+         */
+        static int encrypt(uint8_t *ciphertext,
+                        const uint8_t key[32],
+                        const uint8_t nonce[24],
+                        const uint8_t *ad, size_t ad_len,
+                        const uint8_t *plaintext, size_t text_len)
+        {
+            return fossil_cryptic_aead_encrypt(ciphertext, key, nonce, ad, ad_len, plaintext, text_len);
+        }
 
         /**
-         * @class Aead
-         * @brief C++ wrapper for authenticated encryption logic in the Fossil Cryptic project.
-         *
-         * The Aead class provides C++-friendly wrappers for the C API.
-         *
-         * Usage example:
-         * @code
-         *     uint8_t ciphertext[sizeof(plaintext) + 16];
-         *     fossil::cryptic::Aead::encrypt(ciphertext, key, nonce, nullptr, 0,
-         *                                    plaintext, sizeof(plaintext));
-         * @endcode
-         *
-         * @note
-         * This class is intended for use in C++ environments only. For C code,
-         * use fossil_cryptic_aead_encrypt and fossil_cryptic_aead_decrypt directly.
+         * @brief Decrypt with XChaCha20-Poly1305.
+         * 
+         * @param plaintext Pointer to the buffer where the decrypted data will be stored.
+         * @param key Pointer to the 32-byte decryption key.
+         * @param nonce Pointer to the 24-byte nonce.
+         * @param ad Pointer to the additional authenticated data (AAD).
+         * @param ad_len Length of the additional authenticated data.
+         * @param ciphertext Pointer to the ciphertext data to be decrypted.
+         * @param text_len Length of the ciphertext data.
+         * 
+         * @return 0 on success, -1 on invalid arguments or authentication failure
+         * 
+         * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Aead::decrypt instead.
          */
-        class Aead {
-        public:
-            /**
-             * @brief Encrypts the given plaintext with the provided key, nonce, and additional authenticated data (AAD).
-             *
-             * @param ciphertext Pointer to the buffer where the encrypted data will be stored.
-             * @param key Pointer to the 32-byte encryption key.
-             * @param nonce Pointer to the 24-byte nonce.
-             * @param ad Pointer to the additional authenticated data (AAD).
-             * @param ad_len Length of the additional authenticated data.
-             * @param plaintext Pointer to the plaintext data to be encrypted.
-             * @param text_len Length of the plaintext data.
-             *
-             * @return 0 on success or -1 on invalid arguments.
-             */
-            static int encrypt(
-                uint8_t *ciphertext,
-                const uint8_t key[32],
-                const uint8_t nonce[24],
-                const uint8_t *ad, size_t ad_len,
-                const uint8_t *plaintext, size_t text_len)
-            {
-                return fossil_cryptic_aead_encrypt(
-                    ciphertext, key, nonce, ad, ad_len, plaintext, text_len);
-            }
+        static int decrypt(uint8_t *plaintext,
+                        const uint8_t key[32],
+                        const uint8_t nonce[24],
+                        const uint8_t *ad, size_t ad_len,
+                        const uint8_t *ciphertext, size_t text_len)
+        {
+            return fossil_cryptic_aead_decrypt(plaintext, key, nonce, ad, ad_len, ciphertext, text_len);
+        }
+    };
 
-            /**
-             * @brief Decrypts the given ciphertext with the provided key, nonce, and additional authenticated data (AAD).
-             *
-             * @param plaintext Pointer to the buffer where the decrypted data will be stored.
-             * @param key Pointer to the 32-byte decryption key.
-             * @param nonce Pointer to the 24-byte nonce.
-             * @param ad Pointer to the additional authenticated data (AAD).
-             * @param ad_len Length of the additional authenticated data.
-             * @param ciphertext Pointer to the ciphertext data to be decrypted.
-             * @param text_len Length of the ciphertext data, excluding the tag.
-             *
-             * @return 0 on success or -1 on invalid arguments/authentication failure.
-             */
-            static int decrypt(
-                uint8_t *plaintext,
-                const uint8_t key[32],
-                const uint8_t nonce[24],
-                const uint8_t *ad, size_t ad_len,
-                const uint8_t *ciphertext, size_t text_len)
-            {
-                return fossil_cryptic_aead_decrypt(
-                    plaintext, key, nonce, ad, ad_len, ciphertext, text_len);
-            }
-        };
-
-    } // namespace cryptic
-
-} // namespace fossil
+} // namespace cryptic::fossil
 
 #endif
 

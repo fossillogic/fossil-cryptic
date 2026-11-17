@@ -51,81 +51,38 @@ FOSSIL_TEARDOWN(c_rand_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST(c_test_rand_compute_basic_lcg_hex_u32) {
-    // Basic LCG, hex, u32
-    char output[32];
-    int rc = fossil_cryptic_rand_compute("lcg", "u32", "hex", output, sizeof(output));
+FOSSIL_TEST(c_test_rand_bytes_success) {
+    // Generate cryptographically secure random bytes
+    uint8_t output[32];
+    int rc = fossil_cryptic_rand_bytes(output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) == 8); // 8 hex digits for u32
 }
 
-FOSSIL_TEST(c_test_rand_compute_basic_lcg_hex_u64) {
-    // Basic LCG, hex, u64
-    char output[32];
-    int rc = fossil_cryptic_rand_compute("lcg", "u64", "hex", output, sizeof(output));
+FOSSIL_TEST(c_test_rand_bytes_single_byte) {
+    uint8_t output;
+    int rc = fossil_cryptic_rand_bytes(&output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) == 16); // 16 hex digits for u64
 }
 
-FOSSIL_TEST(c_test_rand_compute_xor_base64_u32) {
-    // XOR, base64, u32
-    char output[32];
-    int rc = fossil_cryptic_rand_compute("xor", "u32", "base64", output, sizeof(output));
+FOSSIL_TEST(c_test_rand_bytes_large_buffer) {
+    uint8_t output[256];
+    int rc = fossil_cryptic_rand_bytes(output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) >= 6); // base64 for 4 bytes
 }
 
-FOSSIL_TEST(c_test_rand_compute_mix_base64_u64) {
-    // Mix, base64, u64
-    char output[32];
-    int rc = fossil_cryptic_rand_compute("mix", "u64", "base64", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) >= 11); // base64 for 8 bytes
-}
-
-FOSSIL_TEST(c_test_rand_compute_auto_params) {
-    // All "auto" parameters
-    char output[32];
-    int rc = fossil_cryptic_rand_compute("auto", "auto", "auto", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) > 0);
-}
-
-FOSSIL_TEST(c_test_rand_compute_null_arguments) {
-    // Should fail with null arguments
-    char output[32];
-    ASSUME_ITS_EQUAL_I32(fossil_cryptic_rand_compute(NULL, "u32", "hex", output, sizeof(output)), -1);
-    ASSUME_ITS_EQUAL_I32(fossil_cryptic_rand_compute("lcg", NULL, "hex", output, sizeof(output)), -1);
-    ASSUME_ITS_EQUAL_I32(fossil_cryptic_rand_compute("lcg", "u32", NULL, output, sizeof(output)), -1);
-    ASSUME_ITS_EQUAL_I32(fossil_cryptic_rand_compute("lcg", "u32", "hex", NULL, sizeof(output)), -1);
-}
-
-FOSSIL_TEST(c_test_rand_compute_unsupported_algorithm) {
-    // Unsupported algorithm
-    char output[32];
-    int rc = fossil_cryptic_rand_compute("unknown", "u32", "hex", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -2);
-}
-
-FOSSIL_TEST(c_test_rand_compute_unsupported_base) {
-    // Unsupported base
-    char output[32];
-    int rc = fossil_cryptic_rand_compute("lcg", "u32", "octal", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, -3);
+FOSSIL_TEST(c_test_rand_bytes_null_output) {
+    // A non-empty request requires a valid output buffer
+    ASSUME_ITS_TRUE(fossil_cryptic_rand_bytes(NULL, 1) < 0);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_rand_tests) {
-    FOSSIL_ADD_TEST(c_rand_fixture, c_test_rand_compute_basic_lcg_hex_u32);
-    FOSSIL_ADD_TEST(c_rand_fixture, c_test_rand_compute_basic_lcg_hex_u64);
-    FOSSIL_ADD_TEST(c_rand_fixture, c_test_rand_compute_xor_base64_u32);
-    FOSSIL_ADD_TEST(c_rand_fixture, c_test_rand_compute_mix_base64_u64);
-    FOSSIL_ADD_TEST(c_rand_fixture, c_test_rand_compute_auto_params);
-    FOSSIL_ADD_TEST(c_rand_fixture, c_test_rand_compute_null_arguments);
-    FOSSIL_ADD_TEST(c_rand_fixture, c_test_rand_compute_unsupported_algorithm);
-    FOSSIL_ADD_TEST(c_rand_fixture, c_test_rand_compute_unsupported_base);
+    FOSSIL_ADD_TEST(c_rand_fixture, c_test_rand_bytes_success);
+    FOSSIL_ADD_TEST(c_rand_fixture, c_test_rand_bytes_single_byte);
+    FOSSIL_ADD_TEST(c_rand_fixture, c_test_rand_bytes_large_buffer);
+    FOSSIL_ADD_TEST(c_rand_fixture, c_test_rand_bytes_null_output);
 
     FOSSIL_ADD_SUITE(c_rand_fixture);
 } // end of tests

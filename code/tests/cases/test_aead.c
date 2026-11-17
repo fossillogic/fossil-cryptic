@@ -62,7 +62,7 @@ FOSSIL_TEST(c_test_aead_encrypt_decrypt_roundtrip) {
     ASSUME_ITS_EQUAL_I32(fossil_cryptic_aead_encrypt(
         ciphertext, key, nonce, ad, sizeof(ad), plaintext, sizeof(plaintext)), 0);
     ASSUME_ITS_EQUAL_I32(fossil_cryptic_aead_decrypt(
-        decrypted, key, nonce, ad, sizeof(ad), ciphertext, sizeof(plaintext)), 0);
+        decrypted, key, nonce, ad, sizeof(ad), ciphertext, sizeof(ciphertext)), 0);
     ASSUME_ITS_TRUE(memcmp(decrypted, plaintext, sizeof(plaintext)) == 0);
 }
 
@@ -93,15 +93,30 @@ FOSSIL_TEST(c_test_aead_decrypt_null_params) {
     uint8_t plaintext[1];
 
     ASSUME_ITS_EQUAL_I32(fossil_cryptic_aead_decrypt(
-        NULL, key, nonce, ad, sizeof(ad), ciphertext, 1), -1);
+        NULL, key, nonce, ad, sizeof(ad), ciphertext, sizeof(ciphertext)), -1);
     ASSUME_ITS_EQUAL_I32(fossil_cryptic_aead_decrypt(
-        plaintext, NULL, nonce, ad, sizeof(ad), ciphertext, 1), -1);
+        plaintext, NULL, nonce, ad, sizeof(ad), ciphertext, sizeof(ciphertext)), -1);
     ASSUME_ITS_EQUAL_I32(fossil_cryptic_aead_decrypt(
-        plaintext, key, NULL, ad, sizeof(ad), ciphertext, 1), -1);
+        plaintext, key, NULL, ad, sizeof(ad), ciphertext, sizeof(ciphertext)), -1);
     ASSUME_ITS_EQUAL_I32(fossil_cryptic_aead_decrypt(
-        plaintext, key, nonce, NULL, sizeof(ad), ciphertext, 1), -1);
+        plaintext, key, nonce, NULL, sizeof(ad), ciphertext, sizeof(ciphertext)), -1);
     ASSUME_ITS_EQUAL_I32(fossil_cryptic_aead_decrypt(
-        plaintext, key, nonce, ad, sizeof(ad), NULL, 1), -1);
+        plaintext, key, nonce, ad, sizeof(ad), NULL, sizeof(ciphertext)), -1);
+}
+
+FOSSIL_TEST(c_test_aead_decrypt_rejects_modified_ciphertext) {
+    const uint8_t key[32] = {0};
+    const uint8_t nonce[24] = {0};
+    const uint8_t ad[] = {0x01, 0x02};
+    const uint8_t plaintext[] = {0x10, 0x20, 0x30};
+    uint8_t ciphertext[sizeof(plaintext) + 16];
+    uint8_t decrypted[sizeof(plaintext)];
+
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_aead_encrypt(
+        ciphertext, key, nonce, ad, sizeof(ad), plaintext, sizeof(plaintext)), 0);
+    ciphertext[0] ^= 0x01;
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_aead_decrypt(
+        decrypted, key, nonce, ad, sizeof(ad), ciphertext, sizeof(ciphertext)), -1);
 }
 
 FOSSIL_TEST(c_test_aead_decrypt_rejects_modified_tag) {
@@ -116,7 +131,23 @@ FOSSIL_TEST(c_test_aead_decrypt_rejects_modified_tag) {
         ciphertext, key, nonce, ad, sizeof(ad), plaintext, sizeof(plaintext)), 0);
     ciphertext[sizeof(plaintext)] ^= 0x01;
     ASSUME_ITS_EQUAL_I32(fossil_cryptic_aead_decrypt(
-        decrypted, key, nonce, ad, sizeof(ad), ciphertext, sizeof(plaintext)), -1);
+        decrypted, key, nonce, ad, sizeof(ad), ciphertext, sizeof(ciphertext)), -1);
+}
+
+FOSSIL_TEST(c_test_aead_decrypt_rejects_modified_aad) {
+    const uint8_t key[32] = {0};
+    const uint8_t nonce[24] = {0};
+    const uint8_t ad[] = {0x01, 0x02};
+    const uint8_t modified_ad[] = {0x01, 0x03};
+    const uint8_t plaintext[] = {0x10, 0x20, 0x30};
+    uint8_t ciphertext[sizeof(plaintext) + 16];
+    uint8_t decrypted[sizeof(plaintext)];
+
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_aead_encrypt(
+        ciphertext, key, nonce, ad, sizeof(ad), plaintext, sizeof(plaintext)), 0);
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_aead_decrypt(
+        decrypted, key, nonce, modified_ad, sizeof(modified_ad),
+        ciphertext, sizeof(ciphertext)), -1);
 }
 
 
@@ -127,7 +158,9 @@ FOSSIL_TEST_GROUP(c_aead_tests) {
     FOSSIL_ADD_TEST(c_aead_fixture, c_test_aead_encrypt_decrypt_roundtrip);
     FOSSIL_ADD_TEST(c_aead_fixture, c_test_aead_encrypt_null_params);
     FOSSIL_ADD_TEST(c_aead_fixture, c_test_aead_decrypt_null_params);
+    FOSSIL_ADD_TEST(c_aead_fixture, c_test_aead_decrypt_rejects_modified_ciphertext);
     FOSSIL_ADD_TEST(c_aead_fixture, c_test_aead_decrypt_rejects_modified_tag);
+    FOSSIL_ADD_TEST(c_aead_fixture, c_test_aead_decrypt_rejects_modified_aad);
 
     FOSSIL_ADD_SUITE(c_aead_fixture);
 } // end of tests

@@ -23,9 +23,10 @@
  * -----------------------------------------------------------------------------
  */
 #include "fossil/cryptic/aead.h"
+#include "fossil/cryptic/util.h"
 #include <string.h>
 
-/* ---------- utilities ---------- */
+/* ---------- helpers ---------- */
 
 static uint32_t load32_le(const uint8_t *p) {
     return (uint32_t)p[0]
@@ -45,18 +46,6 @@ static uint32_t rotl32(uint32_t x, int n) {
     return (x << n) | (x >> (32 - n));
 }
 
-void fossil_cryptic_secure_wipe(void *buf, size_t len) {
-    volatile uint8_t *p = (volatile uint8_t *)buf;
-    while (len--) *p++ = 0;
-}
-
-int fossil_cryptic_aead_verify16(const uint8_t a[16], const uint8_t b[16]) {
-    uint8_t d = 0;
-    for (int i = 0; i < 16; i++)
-        d |= a[i] ^ b[i];
-    return (1 & ((d - 1) >> 8)) - 1; /* 0 if equal, -1 otherwise */
-}
-
 /* ---------- ChaCha20 core ---------- */
 
 #define QR(a, b, c, d) \
@@ -67,10 +56,9 @@ int fossil_cryptic_aead_verify16(const uint8_t a[16], const uint8_t b[16]) {
 
 static void chacha20_block(uint32_t out[16], const uint32_t in[16]) {
     uint32_t x[16];
-    int i;
-    for (i = 0; i < 16; i++) x[i] = in[i];
+    for (int i = 0; i < 16; i++) x[i] = in[i];
 
-    for (i = 0; i < 10; i++) {          /* 20 rounds */
+    for (int i = 0; i < 10; i++) {          /* 20 rounds */
         QR(x[0], x[4], x[8],  x[12])
         QR(x[1], x[5], x[9],  x[13])
         QR(x[2], x[6], x[10], x[14])
@@ -80,11 +68,11 @@ static void chacha20_block(uint32_t out[16], const uint32_t in[16]) {
         QR(x[2], x[7], x[8],  x[13])
         QR(x[3], x[4], x[9],  x[14])
     }
-    for (i = 0; i < 16; i++)
+    for (int i = 0; i < 16; i++)
         out[i] = x[i] + in[i];
 }
 
-/* HChaCha20 – used to derive the XChaCha20 subkey */
+/* HChaCha20 – derives the XChaCha20 subkey */
 static void hchacha20(uint8_t subkey[32],
                       const uint8_t key[32],
                       const uint8_t nonce16[16]) {
@@ -92,26 +80,26 @@ static void hchacha20(uint8_t subkey[32],
         0x61707865, 0x3320646e, 0x79622d32, 0x6b206574
     };
     uint32_t state[16], out[16];
-    int i;
 
     state[0] = c[0]; state[1] = c[1]; state[2] = c[2]; state[3] = c[3];
-    for (i = 0; i < 8; i++)
+    for (int i = 0; i < 8; i++)
         state[4 + i] = load32_le(key + i * 4);
-    for (i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++)
         state[12 + i] = load32_le(nonce16 + i * 4);
 
     chacha20_block(out, state);
 
     /* HChaCha20 output = first 4 + last 4 words */
-    for (i = 0; i < 4; i++) {
-        store32_le(subkey + i * 4,       out[i]);
-        store32_le(subkey + 16 + i * 4,  out[12 + i]);
+    for (int i = 0; i < 4; i++) {
+        store32_le(subkey + i * 4,      out[i]);
+        store32_le(subkey + 16 + i * 4, out[12 + i]);
     }
-    fossil_cryptic_secure_wipe(state, sizeof state);
-    fossil_cryptic_secure_wipe(out,   sizeof out);
+
+    fossil_cryptic_util_wipe(state, sizeof(state));
+    fossil_cryptic_util_wipe(out, sizeof(out));
 }
 
-/* IETF ChaCha20 with 32-bit counter and 96-bit nonce (we only need 64-bit nonce part for XChaCha20) */
+/* IETF ChaCha20 (32-bit counter + 64-bit nonce part used by XChaCha20) */
 static void chacha20_xor(uint8_t *out, const uint8_t *in, size_t len,
                          const uint8_t key[32],
                          const uint8_t nonce8[8],
@@ -121,35 +109,34 @@ static void chacha20_xor(uint8_t *out, const uint8_t *in, size_t len,
     };
     uint32_t state[16], block[16];
     uint8_t keystream[64];
-    size_t i, j;
 
     state[0] = c[0]; state[1] = c[1]; state[2] = c[2]; state[3] = c[3];
-    for (i = 0; i < 8; i++)
+    for (int i = 0; i < 8; i++)
         state[4 + i] = load32_le(key + i * 4);
     state[12] = counter;
-    state[13] = 0; /* 32-bit counter extension unused for our XChaCha20 usage */
+    state[13] = 0;
     state[14] = load32_le(nonce8);
     state[15] = load32_le(nonce8 + 4);
 
-    for (i = 0; i < len; i += 64) {
+    for (size_t i = 0; i < len; i += 64) {
         chacha20_block(block, state);
-        for (j = 0; j < 16; j++)
+        for (int j = 0; j < 16; j++)
             store32_le(keystream + j * 4, block[j]);
 
-        size_t chunk = len - i < 64 ? len - i : 64;
-        for (j = 0; j < chunk; j++)
+        size_t chunk = (len - i < 64) ? (len - i) : 64;
+        for (size_t j = 0; j < chunk; j++)
             out[i + j] = in[i + j] ^ keystream[j];
 
         state[12]++;
     }
-    fossil_cryptic_secure_wipe(state, sizeof state);
-    fossil_cryptic_secure_wipe(block, sizeof block);
-    fossil_cryptic_secure_wipe(keystream, sizeof keystream);
+
+    fossil_cryptic_util_wipe(state, sizeof(state));
+    fossil_cryptic_util_wipe(block, sizeof(block));
+    fossil_cryptic_util_wipe(keystream, sizeof(keystream));
 }
 
 /* ---------- Poly1305 ---------- */
 
-/* 130-bit little-endian field element as 5x26-bit limbs */
 typedef struct {
     uint32_t v[5];
 } poly1305_fe;
@@ -168,8 +155,8 @@ static void fe_from_bytes(poly1305_fe *h, const uint8_t s[16]) {
 }
 
 static void fe_freeze(uint8_t out[16], const poly1305_fe *h) {
-    uint32_t g0, g1, g2, g3, g4, b;
     uint32_t h0 = h->v[0], h1 = h->v[1], h2 = h->v[2], h3 = h->v[3], h4 = h->v[4];
+    uint32_t g0, g1, g2, g3, g4, b;
 
     /* fully carry */
     h1 += h0 >> 26; h0 &= 0x3ffffff;
@@ -215,7 +202,7 @@ typedef struct {
 } poly1305_ctx;
 
 static void poly1305_init(poly1305_ctx *st, const uint8_t key[32]) {
-    memset(st, 0, sizeof *st);
+    memset(st, 0, sizeof(*st));
     fe_from_bytes(&st->r, key);
     /* clamp r */
     st->r.v[0] &= 0x3ffffff;
@@ -237,7 +224,6 @@ static void poly1305_blocks(poly1305_ctx *st, const uint8_t *m, size_t nblocks, 
              h3 = st->h.v[3], h4 = st->h.v[4];
 
     while (nblocks--) {
-        /* h += m[i] */
         uint32_t t0 = load32_le(m +  0);
         uint32_t t1 = load32_le(m +  4);
         uint32_t t2 = load32_le(m +  8);
@@ -249,14 +235,12 @@ static void poly1305_blocks(poly1305_ctx *st, const uint8_t *m, size_t nblocks, 
         h3 += (t2 >> 14 | t3 << 18)  & 0x3ffffff;
         h4 += (t3 >>  8) | ((uint32_t)final_bit << 24);
 
-        /* h *= r */
         uint64_t d0 = (uint64_t)h0*r0 + (uint64_t)h1*s4 + (uint64_t)h2*s3 + (uint64_t)h3*s2 + (uint64_t)h4*s1;
         uint64_t d1 = (uint64_t)h0*r1 + (uint64_t)h1*r0 + (uint64_t)h2*s4 + (uint64_t)h3*s3 + (uint64_t)h4*s2;
         uint64_t d2 = (uint64_t)h0*r2 + (uint64_t)h1*r1 + (uint64_t)h2*r0 + (uint64_t)h3*s4 + (uint64_t)h4*s3;
         uint64_t d3 = (uint64_t)h0*r3 + (uint64_t)h1*r2 + (uint64_t)h2*r1 + (uint64_t)h3*r0 + (uint64_t)h4*s4;
         uint64_t d4 = (uint64_t)h0*r4 + (uint64_t)h1*r3 + (uint64_t)h2*r2 + (uint64_t)h3*r1 + (uint64_t)h4*r0;
 
-        /* partial reduction */
         h0 = (uint32_t)d0 & 0x3ffffff; d1 += d0 >> 26;
         h1 = (uint32_t)d1 & 0x3ffffff; d2 += d1 >> 26;
         h2 = (uint32_t)d2 & 0x3ffffff; d3 += d2 >> 26;
@@ -302,22 +286,20 @@ static void poly1305_finish(poly1305_ctx *st, uint8_t mac[16]) {
         poly1305_blocks(st, st->buf, 1, 0);
     }
 
-    /* final reduction + add pad */
     uint8_t hbytes[16];
     fe_freeze(hbytes, &st->h);
 
     uint64_t c = 0;
     uint32_t t[4];
-    int i;
-    for (i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
         c += (uint64_t)load32_le(hbytes + i * 4) + st->pad[i];
         t[i] = (uint32_t)c;
         c >>= 32;
     }
-    for (i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++)
         store32_le(mac + i * 4, t[i]);
 
-    fossil_cryptic_secure_wipe(st, sizeof *st);
+    fossil_cryptic_util_wipe(st, sizeof(*st));
 }
 
 /* ---------- AEAD construction ---------- */
@@ -333,7 +315,7 @@ static void poly1305_pad16(poly1305_ctx *st, size_t len) {
 static void aead_mac(uint8_t tag[16],
                      const uint8_t otk[32],
                      const uint8_t *ad, size_t ad_len,
-                     const uint8_t *ct,  size_t ct_len) {
+                     const uint8_t *ct, size_t ct_len) {
     poly1305_ctx st;
     uint8_t lens[16];
 
@@ -356,26 +338,28 @@ static void aead_mac(uint8_t tag[16],
     poly1305_finish(&st, tag);
 }
 
-int fossil_cryptic_aead_encrypt(
-    uint8_t       *ciphertext,
-    const uint8_t  key[32],
-    const uint8_t  nonce[24],
-    const uint8_t *ad,       size_t ad_len,
-    const uint8_t *plaintext, size_t text_len
-) {
-    uint8_t subkey[32];
-    uint8_t otk[64];
-    uint8_t tag[16];
+/* ---------- Public API ---------- */
 
+int fossil_cryptic_aead_encrypt(
+    uint8_t *ciphertext,
+    const uint8_t key[32],
+    const uint8_t nonce[24],
+    const uint8_t *ad, size_t ad_len,
+    const uint8_t *plaintext, size_t text_len)
+{
     if (!ciphertext || !key || !nonce) return -1;
     if (text_len && !plaintext) return -1;
     if (ad_len && !ad) return -1;
 
-    /* XChaCha20: derive subkey */
+    uint8_t subkey[32];
+    uint8_t otk[64];
+    uint8_t tag[16];
+
+    /* XChaCha20: derive subkey from first 16 bytes of nonce */
     hchacha20(subkey, key, nonce);
 
     /* Poly1305 one-time key = first 32 bytes of keystream at counter 0 */
-    memset(otk, 0, sizeof otk);
+    memset(otk, 0, sizeof(otk));
     chacha20_xor(otk, otk, 64, subkey, nonce + 16, 0);
 
     /* Encrypt with counter starting at 1 */
@@ -385,42 +369,43 @@ int fossil_cryptic_aead_encrypt(
     aead_mac(tag, otk, ad, ad_len, ciphertext, text_len);
     memcpy(ciphertext + text_len, tag, 16);
 
-    fossil_cryptic_secure_wipe(subkey, sizeof subkey);
-    fossil_cryptic_secure_wipe(otk,    sizeof otk);
-    fossil_cryptic_secure_wipe(tag,    sizeof tag);
+    fossil_cryptic_util_wipe(subkey, sizeof(subkey));
+    fossil_cryptic_util_wipe(otk, sizeof(otk));
+    fossil_cryptic_util_wipe(tag, sizeof(tag));
     return 0;
 }
 
 int fossil_cryptic_aead_decrypt(
-    uint8_t       *plaintext,
-    const uint8_t  key[32],
-    const uint8_t  nonce[24],
-    const uint8_t *ad,        size_t ad_len,
-    const uint8_t *ciphertext, size_t text_len
-) {
+    uint8_t *plaintext,
+    const uint8_t key[32],
+    const uint8_t nonce[24],
+    const uint8_t *ad, size_t ad_len,
+    const uint8_t *ciphertext, size_t ciphertext_len)
+{
+    if (!plaintext || !key || !nonce || !ciphertext) return -1;
+    if (ad_len && !ad) return -1;
+    if (ciphertext_len < 16) return -1;
+
+    size_t text_len = ciphertext_len - 16;
+
     uint8_t subkey[32];
     uint8_t otk[64];
     uint8_t expect[16];
-    const uint8_t *tag;
-    int rc;
-
-    if (!plaintext || !key || !nonce || !ciphertext) return -1;
-    if (ad_len && !ad) return -1;
-
-    tag = ciphertext + text_len;
+    const uint8_t *tag = ciphertext + text_len;
 
     hchacha20(subkey, key, nonce);
-    memset(otk, 0, sizeof otk);
+
+    memset(otk, 0, sizeof(otk));
     chacha20_xor(otk, otk, 64, subkey, nonce + 16, 0);
 
     aead_mac(expect, otk, ad, ad_len, ciphertext, text_len);
-    rc = fossil_cryptic_aead_verify16(tag, expect);
+    int rc = fossil_cryptic_util_verify16(tag, expect);
 
     if (rc == 0 && text_len)
         chacha20_xor(plaintext, ciphertext, text_len, subkey, nonce + 16, 1);
 
-    fossil_cryptic_secure_wipe(subkey, sizeof subkey);
-    fossil_cryptic_secure_wipe(otk,    sizeof otk);
-    fossil_cryptic_secure_wipe(expect, sizeof expect);
-    return rc; /* 0 success, -1 auth failure */
+    fossil_cryptic_util_wipe(subkey, sizeof(subkey));
+    fossil_cryptic_util_wipe(otk, sizeof(otk));
+    fossil_cryptic_util_wipe(expect, sizeof(expect));
+    return rc;
 }

@@ -29,131 +29,270 @@
 #include <stddef.h>
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
+/* ========== Cryptographic hashes (binary output) ========== */
+
 /**
- * @brief Computes a hash of the given input data using the specified algorithm and formatting options.
+ * @brief Computes the BLAKE2b-512 hash of the input data.
  *
- * This function calculates a hash value for the provided input buffer using one of several supported
- * algorithms. The result is formatted according to the specified bit width and output base, and is
- * written as a string to the provided output buffer.
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ * @param out Pointer to a buffer where the 64-byte hash will be stored.
  *
- * @param algorithm
- *      The hash algorithm to use. Supported values include:
- *      - "crc32", "crc64", "fnv32", "fnv64", "xor", "djb2", "sdbm",
- *        "murmur3_32", "murmur3_64", "cityhash32", "cityhash64",
- *        "xxhash32", "xxhash64"
- * @param bits
- *      The bit width of the output hash. Supported values:
- *      - "u32", "u64", "auto"
- * @param base
- *      The output encoding/base for the hash string. Supported values:
- *      - "hex", "dec", "oct", "bin", "auto"
- * @param output
- *      Pointer to the buffer where the resulting hash string will be written.
- * @param output_len
- *      Size of the output buffer in bytes, including the null terminator.
- * @param input
- *      Pointer to the input data buffer to be hashed.
- * @param input_len
- *      Length of the input data buffer in bytes.
- * @return
- *      Returns 0 on success. Returns a non-zero value on error (e.g., invalid parameters,
- *      unsupported algorithm, insufficient output buffer size).
+ * @return 0 on success, non-zero on failure.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Hash::blake2b_512 instead.
  */
-int fossil_cryptic_hash_compute(
-    const char* algorithm,
-    const char* bits,
-    const char* base,
-    char* output, size_t output_len,
-    const void* input, size_t input_len
-);
+int fossil_cryptic_hash_blake2b_512(const void *in, size_t in_len, uint8_t out[64]);
+
+/**
+ * @brief Computes the BLAKE2b-256 hash of the input data.
+ *
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ * @param out Pointer to a buffer where the 32-byte hash will be stored.
+ *
+ * @return 0 on success, non-zero on failure.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Hash::blake2b_256 instead.
+ */
+int fossil_cryptic_hash_blake2b_256(const void *in, size_t in_len, uint8_t out[32]);
+
+/**
+ * @brief Computes the SHA-256 hash of the input data.
+ *
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ * @param out Pointer to a buffer where the 32-byte hash will be stored.
+ *
+ * @return 0 on success, non-zero on failure.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Hash::sha256 instead.
+ */
+int fossil_cryptic_hash_sha256(const void *in, size_t in_len, uint8_t out[32]);
+
+/**
+ * @brief Computes the SHA-512 hash of the input data.
+ *
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ * @param out Pointer to a buffer where the 64-byte hash will be stored.
+ *
+ * @return 0 on success, non-zero on failure.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Hash::sha512 instead.
+ */
+int fossil_cryptic_hash_sha512(const void *in, size_t in_len, uint8_t out[64]);
+
+/* ========== Non-cryptographic (utility only) ========== */
+
+/**
+ * @brief Computes the CRC32 checksum of the input data.
+ *
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ *
+ * @return The computed CRC32 checksum.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Hash::crc32 instead.
+ */
+uint32_t fossil_cryptic_hash_crc32(const void *in, size_t in_len);
+
+/**
+ * @brief Computes the CRC64 checksum of the input data.
+ *
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ *
+ * @return The computed CRC64 checksum.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Hash::crc64 instead.
+ */
+uint64_t fossil_cryptic_hash_crc64(const void *in, size_t in_len);
+
+/**
+ * @brief Computes the FNV-32 hash of the input data.
+ *
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ *
+ * @return The computed FNV-32 hash.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Hash::fnv32 instead.
+ */
+uint32_t fossil_cryptic_hash_fnv32(const void *in, size_t in_len);
+
+/**
+ * @brief Computes the FNV-64 hash of the input data.
+ *
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ *
+ * @return The computed FNV-64 hash.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Hash::fnv64 instead.
+ */
+uint64_t fossil_cryptic_hash_fnv64(const void *in, size_t in_len);
+
+/**
+ * @brief Computes the DJB2 hash of the input data.
+ *
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ *
+ * @return The computed DJB2 hash.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Hash::djb2 instead.
+ */
+uint32_t fossil_cryptic_hash_djb2(const void *in, size_t in_len);
+
+/**
+ * @brief Computes the SDBM hash of the input data.
+ *
+ * @param in Pointer to the input data.
+ * @param in_len Length of the input data in bytes.
+ *
+ * @return The computed SDBM hash.
+ *
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Hash::sdbm instead.
+ */
+uint32_t fossil_cryptic_hash_sdbm(const void *in, size_t in_len);
 
 #ifdef __cplusplus
 }
-#include <string>
-#include <vector>
 #include <array>
+#include <vector>
 #include <stdexcept>
+#include <string>
 
-namespace fossil {
+namespace fossil::cryptic
+{
 
-    namespace cryptic {
+    class Hash
+    {
+    private:
+        static const void *normalize_input(const void *in, size_t len, const char *function_name)
+        {
+            if (in == nullptr && len != 0)
+                throw std::invalid_argument(function_name);
 
-        class Hash {
-        public:
-            /**
-             * @brief Computes a hash of the given input data using the specified algorithm and formatting options.
-             *
-             * @param algorithm
-             *      The hash algorithm to use. Supported values include:
-             *      - "crc32", "fnv32", "fnv64", "xor", "djb2", "sdbm"
-             * @param bits
-             *      The bit width of the output hash. Supported values: "u32", "u64", "auto"
-             * @param base
-             *      The output encoding/base for the hash string. Supported values: "hex", "base64", "auto"
-             * @param input
-             *      Pointer to the input data buffer to be hashed.
-             * @param input_len
-             *      Length of the input data buffer in bytes.
-             * @return
-             *      The resulting hash string.
-             * @throws std::invalid_argument on invalid parameters.
-             * @throws std::runtime_error on hashing errors.
-             */
-            static std::string compute(
-            const std::string& algorithm,
-            const std::string& bits,
-            const std::string& base,
-            const void* input,
-            size_t input_len
-            ) {
-                // Allocate a sufficiently large buffer for the hash output
-                std::array<char, 128> buffer{};
-                int result = fossil_cryptic_hash_compute(
-                    algorithm.c_str(),
-                    bits.c_str(),
-                    base.c_str(),
-                    buffer.data(),
-                    buffer.size(),
-                    input,
-                    input_len
-                );
-                if (result != 0) {
-                    throw std::runtime_error("Hash computation failed");
-                }
-                return std::string(buffer.data());
+            if (in == nullptr && len == 0)
+            {
+                static const uint8_t empty_byte = 0;
+                return &empty_byte;
             }
 
-            /**
-             * @brief Overload for std::vector<uint8_t> input.
-             */
-            static std::string compute(
-            const std::string& algorithm,
-            const std::string& bits,
-            const std::string& base,
-            const std::vector<uint8_t>& input
-            ) {
-                return compute(algorithm, bits, base, input.data(), input.size());
-            }
+            return in;
+        }
 
-            /**
-             * @brief Overload for std::string input.
-             */
-            static std::string compute(
-            const std::string& algorithm,
-            const std::string& bits,
-            const std::string& base,
-            const std::string& input
-            ) {
-                return compute(algorithm, bits, base, input.data(), input.size());
-            }
-        };
+    public:
 
-    } // namespace cryptic
+        static std::array<uint8_t, 64> blake2b_512(const void *in, size_t in_len)
+        {
+            std::array<uint8_t, 64> out{};
+            in = normalize_input(in, in_len, "blake2b_512: null input with non-zero length");
+            if (fossil_cryptic_hash_blake2b_512(in, in_len, out.data()) != 0)
+                throw std::runtime_error("blake2b_512 failed");
+            return out;
+        }
 
-} // namespace fossil
+        static std::array<uint8_t, 32> blake2b_256(const void *in, size_t in_len)
+        {
+            std::array<uint8_t, 32> out{};
+            in = normalize_input(in, in_len, "blake2b_256: null input with non-zero length");
+            if (fossil_cryptic_hash_blake2b_256(in, in_len, out.data()) != 0)
+                throw std::runtime_error("blake2b_256 failed");
+            return out;
+        }
+
+        static std::array<uint8_t, 32> sha256(const void *in, size_t in_len)
+        {
+            std::array<uint8_t, 32> out{};
+            in = normalize_input(in, in_len, "sha256: null input with non-zero length");
+            if (fossil_cryptic_hash_sha256(in, in_len, out.data()) != 0)
+                throw std::runtime_error("sha256 failed");
+            return out;
+        }
+
+        static std::array<uint8_t, 64> sha512(const void *in, size_t in_len)
+        {
+            std::array<uint8_t, 64> out{};
+            in = normalize_input(in, in_len, "sha512: null input with non-zero length");
+            const int status = fossil_cryptic_hash_sha512(in, in_len, out.data());
+            if (status != 0)
+                throw std::runtime_error("sha512 failed (status " + std::to_string(status) + ")");
+            return out;
+        }
+
+        static uint32_t crc32(const void *in, size_t in_len)
+        {
+            in = normalize_input(in, in_len, "crc32: null input with non-zero length");
+            return fossil_cryptic_hash_crc32(in, in_len);
+        }
+
+        static uint64_t crc64(const void *in, size_t in_len)
+        {
+            in = normalize_input(in, in_len, "crc64: null input with non-zero length");
+            return fossil_cryptic_hash_crc64(in, in_len);
+        }
+
+        static uint32_t fnv32(const void *in, size_t in_len)
+        {
+            in = normalize_input(in, in_len, "fnv32: null input with non-zero length");
+            return fossil_cryptic_hash_fnv32(in, in_len);
+        }
+
+        static uint64_t fnv64(const void *in, size_t in_len)
+        {
+            in = normalize_input(in, in_len, "fnv64: null input with non-zero length");
+            return fossil_cryptic_hash_fnv64(in, in_len);
+        }
+
+        static uint32_t djb2(const void *in, size_t in_len)
+        {
+            in = normalize_input(in, in_len, "djb2: null input with non-zero length");
+            return fossil_cryptic_hash_djb2(in, in_len);
+        }
+
+        static uint32_t sdbm(const void *in, size_t in_len)
+        {
+            in = normalize_input(in, in_len, "sdbm: null input with non-zero length");
+            return fossil_cryptic_hash_sdbm(in, in_len);
+        }
+
+        static std::array<uint8_t, 64> blake2b_512(const std::vector<uint8_t> &in)
+        {
+            return blake2b_512(in.data(), in.size());
+        }
+
+        static std::array<uint8_t, 32> blake2b_256(const std::vector<uint8_t> &in)
+        {
+            return blake2b_256(in.data(), in.size());
+        }
+
+        static std::array<uint8_t, 32> sha256(const std::vector<uint8_t> &in)
+        {
+            return sha256(in.data(), in.size());
+        }
+
+        static std::array<uint8_t, 64> sha512(const std::vector<uint8_t> &in)
+        {
+            return sha512(in.data(), in.size());
+        }
+
+        static uint32_t crc32(const std::vector<uint8_t> &in) { return crc32(in.data(), in.size()); }
+        static uint64_t crc64(const std::vector<uint8_t> &in) { return crc64(in.data(), in.size()); }
+        static uint32_t fnv32(const std::vector<uint8_t> &in) { return fnv32(in.data(), in.size()); }
+        static uint64_t fnv64(const std::vector<uint8_t> &in) { return fnv64(in.data(), in.size()); }
+        static uint32_t djb2(const std::vector<uint8_t> &in) { return djb2(in.data(), in.size()); }
+        static uint32_t sdbm(const std::vector<uint8_t> &in) { return sdbm(in.data(), in.size()); }
+
+    };
+
+} // namespace cryptic::fossil
 
 #endif
 

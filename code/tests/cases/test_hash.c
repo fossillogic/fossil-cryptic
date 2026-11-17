@@ -51,199 +51,83 @@ FOSSIL_TEARDOWN(c_hash_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST(c_test_crc32_oneshot) {
-    const char *msg = "abc";
-    char hex[9];
-    int rc = fossil_cryptic_hash_compute("crc32", "u32", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_EQUAL_CSTR(hex, "352441c2");
+FOSSIL_TEST(c_test_hash_blake2b_512) {
+    uint8_t digest[64];
+    uint8_t repeated_digest[64];
+
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_blake2b_512("abc", 3, digest), 0);
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_blake2b_512("abc", 3, repeated_digest), 0);
+    ASSUME_ITS_TRUE(memcmp(digest, repeated_digest, sizeof(digest)) == 0);
+    ASSUME_ITS_TRUE(memcmp(digest, (uint8_t[64]){0}, sizeof(digest)) != 0);
 }
 
-FOSSIL_TEST(c_test_fnv1a32_oneshot) {
-    const char *msg = "abc";
-    char hex[9];
-    int rc = fossil_cryptic_hash_compute("fnv32", "u32", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    // The expected value may differ depending on fnv32 implementation
-    // Update as needed to match your fnv32 output for "abc"
-    ASSUME_ITS_EQUAL_CSTR(hex, "1a47e90b");
+FOSSIL_TEST(c_test_hash_blake2b_256) {
+    uint8_t digest[32];
+    uint8_t repeated_digest[32];
+
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_blake2b_256("abc", 3, digest), 0);
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_blake2b_256("abc", 3, repeated_digest), 0);
+    ASSUME_ITS_TRUE(memcmp(digest, repeated_digest, sizeof(digest)) == 0);
+    ASSUME_ITS_TRUE(memcmp(digest, (uint8_t[32]){0}, sizeof(digest)) != 0);
 }
 
-FOSSIL_TEST(c_test_fnv1a64_oneshot) {
-    const char *msg = "abc";
-    char hex[17];
-    int rc = fossil_cryptic_hash_compute("fnv64", "u64", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    // The expected value may differ depending on fnv64 implementation
-    // Update as needed to match your fnv64 output for "abc"
-    ASSUME_ITS_EQUAL_CSTR(hex, "e71fa2190541574b");
+FOSSIL_TEST(c_test_hash_sha256) {
+    static const uint8_t expected[32] = {
+        0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea,
+        0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23,
+        0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c,
+        0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad
+    };
+    uint8_t digest[32];
+
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_sha256("abc", 3, digest), 0);
+    ASSUME_ITS_TRUE(memcmp(digest, expected, sizeof(expected)) == 0);
 }
 
-FOSSIL_TEST(c_test_murmur3_oneshot) {
-    const char *msg = "abc";
-    char hex[9];
-    int rc = fossil_cryptic_hash_compute("murmur3_32", "u32", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_EQUAL_CSTR(hex, "b3dd93fa");
+FOSSIL_TEST(c_test_hash_sha512) {
+    static const uint8_t expected[64] = {
+        0xdd, 0xaf, 0x35, 0xa1, 0x93, 0x61, 0x7a, 0xba,
+        0xcc, 0x41, 0x73, 0x49, 0xae, 0x20, 0x41, 0x31,
+        0x12, 0xe6, 0xfa, 0x4e, 0x89, 0xa9, 0x7e, 0xa2,
+        0x0a, 0x9e, 0xee, 0xe6, 0x4b, 0x55, 0xd3, 0x9a,
+        0x21, 0x92, 0x99, 0x2a, 0x27, 0x4f, 0xc1, 0xa8,
+        0x36, 0xba, 0x3c, 0x23, 0xa3, 0xfe, 0xeb, 0xbd,
+        0x45, 0x4d, 0x44, 0x23, 0x64, 0x3c, 0xe8, 0x0e,
+        0x2a, 0x9a, 0xc9, 0x4f, 0xa5, 0x4c, 0xa4, 0x9f
+    };
+    uint8_t digest[64];
+
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_sha512("abc", 3, digest), 0);
+    ASSUME_ITS_TRUE(memcmp(digest, expected, sizeof(expected)) == 0);
 }
 
-FOSSIL_TEST(c_test_crc64_oneshot) {
-    const char *msg = "abc";
-    char hex[17];
-    int rc = fossil_cryptic_hash_compute("crc64", "u64", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    // The expected value may differ depending on crc64 implementation
-    ASSUME_ITS_EQUAL_CSTR(hex, "2cd8094a1a277627"); // Update if needed
-}
+FOSSIL_TEST(c_test_hash_utility_functions) {
+    const char input[] = "abc";
+    const char other[] = "abd";
 
-FOSSIL_TEST(c_test_djb2_oneshot) {
-    const char *msg = "abc";
-    char hex[9];
-    int rc = fossil_cryptic_hash_compute("djb2", "u32", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_EQUAL_CSTR(hex, "0b885c8b");
-}
-
-FOSSIL_TEST(c_test_sdbm_oneshot) {
-    const char *msg = "abc";
-    char hex[9];
-    int rc = fossil_cryptic_hash_compute("sdbm", "u32", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_EQUAL_CSTR(hex, "3025f862");
-}
-
-FOSSIL_TEST(c_test_xor_oneshot) {
-    const char *msg = "abc";
-    char hex[9];
-    int rc = fossil_cryptic_hash_compute("xor", "u32", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_EQUAL_CSTR(hex, "00000060");
-}
-
-FOSSIL_TEST(c_test_cityhash32_oneshot) {
-    const char *msg = "abc";
-    char hex[9];
-    int rc = fossil_cryptic_hash_compute("cityhash32", "u32", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_EQUAL_CSTR(hex, "00019bf5");
-}
-
-FOSSIL_TEST(c_test_cityhash64_oneshot) {
-    const char *msg = "abc";
-    char hex[17];
-    int rc = fossil_cryptic_hash_compute("cityhash64", "u64", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_EQUAL_CSTR(hex, "00000000001939ae");
-}
-
-FOSSIL_TEST(c_test_xxhash32_oneshot) {
-    const char *msg = "abc";
-    char hex[9];
-    int rc = fossil_cryptic_hash_compute("xxhash32", "u32", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_EQUAL_CSTR(hex, "159d90c6");
-}
-
-FOSSIL_TEST(c_test_xxhash64_oneshot) {
-    const char *msg = "abc";
-    char hex[17];
-    int rc = fossil_cryptic_hash_compute("xxhash64", "u64", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_EQUAL_CSTR(hex, "530da1fae171f2df");
-}
-
-FOSSIL_TEST(c_test_murmur3_64_oneshot) {
-    const char *msg = "abc";
-    char hex[17];
-    int rc = fossil_cryptic_hash_compute("murmur3_64", "u64", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    // The expected value may differ depending on implementation
-    ASSUME_ITS_EQUAL_CSTR(hex, "b4963f3f3fad7867"); // Update if needed
-}
-
-FOSSIL_TEST(c_test_crc32_dec_base) {
-    const char *msg = "abc";
-    char dec[12];
-    int rc = fossil_cryptic_hash_compute("crc32", "u32", "dec", dec, sizeof(dec), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_EQUAL_CSTR(dec, "891568578");
-}
-
-FOSSIL_TEST(c_test_crc32_oct_base) {
-    const char *msg = "abc";
-    char oct[12];
-    int rc = fossil_cryptic_hash_compute("crc32", "u32", "oct", oct, sizeof(oct), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_EQUAL_CSTR(oct, "6511040702");
-}
-
-FOSSIL_TEST(c_test_crc32_bin_base) {
-    const char *msg = "abc";
-    char bin[33];
-    int rc = fossil_cryptic_hash_compute("crc32", "u32", "bin", bin, sizeof(bin), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_EQUAL_CSTR(bin, "00110101001001000100000111000010");
-}
-
-FOSSIL_TEST(c_test_invalid_algorithm) {
-    const char *msg = "abc";
-    char hex[9];
-    int rc = fossil_cryptic_hash_compute("notahash", "u32", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, -3);
-}
-
-FOSSIL_TEST(c_test_invalid_bits) {
-    const char *msg = "abc";
-    char hex[9];
-    int rc = fossil_cryptic_hash_compute("crc32", "u128", "hex", hex, sizeof(hex), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, -2);
-}
-
-FOSSIL_TEST(c_test_invalid_base) {
-    const char *msg = "abc";
-    char buf[32];
-    int rc = fossil_cryptic_hash_compute("crc32", "u32", "base99", buf, sizeof(buf), msg, 3);
-    ASSUME_ITS_EQUAL_I32(rc, -4);
-}
-
-FOSSIL_TEST(c_test_null_args) {
-    char hex[9];
-    int rc = fossil_cryptic_hash_compute(NULL, "u32", "hex", hex, sizeof(hex), "abc", 3);
-    ASSUME_ITS_EQUAL_I32(rc, -1);
-    rc = fossil_cryptic_hash_compute("crc32", NULL, "hex", hex, sizeof(hex), "abc", 3);
-    ASSUME_ITS_EQUAL_I32(rc, -1);
-    rc = fossil_cryptic_hash_compute("crc32", "u32", NULL, hex, sizeof(hex), "abc", 3);
-    ASSUME_ITS_EQUAL_I32(rc, -1);
-    rc = fossil_cryptic_hash_compute("crc32", "u32", "hex", NULL, sizeof(hex), "abc", 3);
-    ASSUME_ITS_EQUAL_I32(rc, -1);
-    rc = fossil_cryptic_hash_compute("crc32", "u32", "hex", hex, sizeof(hex), NULL, 3);
-    ASSUME_ITS_EQUAL_I32(rc, -1);
+    ASSUME_ITS_TRUE(fossil_cryptic_hash_crc32(input, 3) == fossil_cryptic_hash_crc32(input, 3));
+    ASSUME_ITS_TRUE(fossil_cryptic_hash_crc32(input, 3) != fossil_cryptic_hash_crc32(other, 3));
+    ASSUME_ITS_TRUE(fossil_cryptic_hash_crc64(input, 3) == fossil_cryptic_hash_crc64(input, 3));
+    ASSUME_ITS_TRUE(fossil_cryptic_hash_crc64(input, 3) != fossil_cryptic_hash_crc64(other, 3));
+    ASSUME_ITS_TRUE(fossil_cryptic_hash_fnv32(input, 3) == fossil_cryptic_hash_fnv32(input, 3));
+    ASSUME_ITS_TRUE(fossil_cryptic_hash_fnv32(input, 3) != fossil_cryptic_hash_fnv32(other, 3));
+    ASSUME_ITS_TRUE(fossil_cryptic_hash_fnv64(input, 3) == fossil_cryptic_hash_fnv64(input, 3));
+    ASSUME_ITS_TRUE(fossil_cryptic_hash_fnv64(input, 3) != fossil_cryptic_hash_fnv64(other, 3));
+    ASSUME_ITS_TRUE(fossil_cryptic_hash_djb2(input, 3) == fossil_cryptic_hash_djb2(input, 3));
+    ASSUME_ITS_TRUE(fossil_cryptic_hash_djb2(input, 3) != fossil_cryptic_hash_djb2(other, 3));
+    ASSUME_ITS_TRUE(fossil_cryptic_hash_sdbm(input, 3) == fossil_cryptic_hash_sdbm(input, 3));
+    ASSUME_ITS_TRUE(fossil_cryptic_hash_sdbm(input, 3) != fossil_cryptic_hash_sdbm(other, 3));
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_hash_tests) {
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_crc32_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_fnv1a32_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_fnv1a64_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_murmur3_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_crc64_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_djb2_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_sdbm_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_xor_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_cityhash32_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_cityhash64_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_xxhash32_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_xxhash64_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_murmur3_64_oneshot);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_crc32_dec_base);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_crc32_oct_base);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_crc32_bin_base);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_invalid_algorithm);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_invalid_bits);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_invalid_base);
-    FOSSIL_ADD_TEST(c_hash_fixture, c_test_null_args);
+    FOSSIL_ADD_TEST(c_hash_fixture, c_test_hash_blake2b_512);
+    FOSSIL_ADD_TEST(c_hash_fixture, c_test_hash_blake2b_256);
+    FOSSIL_ADD_TEST(c_hash_fixture, c_test_hash_sha256);
+    FOSSIL_ADD_TEST(c_hash_fixture, c_test_hash_sha512);
+    FOSSIL_ADD_TEST(c_hash_fixture, c_test_hash_utility_functions);
 
     FOSSIL_ADD_SUITE(c_hash_fixture);
-} // end of tests
+} // end of hash tests

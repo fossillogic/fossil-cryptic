@@ -33,108 +33,114 @@ extern "C" {
 #endif
 
 /**
- * @brief Generates a cryptographic key using the specified algorithm, bit width, base, and seed.
- *
- * This function derives a key from the provided seed string using one of several supported
- * algorithms. The result is formatted according to the specified bit width and output base,
- * and is written as a string to the provided output buffer.
- *
- * @param algorithm
- *      The key derivation algorithm to use. Supported values include:
- *      - "fnv", "crc", "mix", "auto"
- * @param bits
- *      The bit width of the output key. Supported values:
- *      - "u32", "u64", "auto"
- * @param base
- *      The output encoding/base for the key string. Supported values:
- *      - "hex", "base64", "auto"
- * @param seed
- *      The seed string (passphrase or context) used for key generation.
- * @param output
- *      Pointer to the buffer where the resulting key string will be written.
- * @param output_len
- *      Size of the output buffer in bytes, including the null terminator.
- * @return
- *      Returns 0 on success. Returns a non-zero value on error (e.g., invalid parameters,
- *      unsupported algorithm, insufficient output buffer size).
+ * @brief HKDF using HMAC-SHA256.
+ * 
+ * @param ikm Pointer to the input keying material.
+ * @param ikm_len Length of the input keying material in bytes.
+ * @param salt Pointer to the optional salt value (can be NULL).
+ * @param salt_len Length of the salt value in bytes (0 if salt is NULL).
+ * @param info Pointer to the optional context and application specific information (can be NULL).
+ * @param info_len Length of the info value in bytes (0 if info is NULL).
+ * @param okm Pointer to the output keying material buffer.
+ * @param okm_len Length of the output keying material in bytes.
+ * 
+ * @return 0 on success, non-zero on failure.
+ * 
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Keygen::hkdf_sha256 instead.
  */
-int fossil_cryptic_keygen_compute(
-    const char* algorithm,   // "fnv", "crc", "mix", "auto"
-    const char* bits,        // "u32", "u64", "auto"
-    const char* base,        // "hex", "base64", "auto"
-    const char* seed,        // seed string (passphrase or context)
-    char* output, size_t output_len
-);
+int fossil_cryptic_keygen_hkdf_sha256(
+    const uint8_t *ikm, size_t ikm_len,
+    const uint8_t *salt, size_t salt_len,
+    const uint8_t *info, size_t info_len,
+    uint8_t *okm, size_t okm_len);
+
+/**
+ * @brief PBKDF2 using HMAC-SHA256.
+ * 
+ * @param password Pointer to the password.
+ * @param password_len Length of the password in bytes.
+ * @param salt Pointer to the salt value.
+ * @param salt_len Length of the salt value in bytes.
+ * @param iterations Number of iterations to perform.
+ * @param out Pointer to the output derived key buffer.
+ * @param out_len Length of the output derived key in bytes.
+ * 
+ * @return 0 on success, non-zero on failure.
+ * 
+ * @note This function is intended for use in C environments. For C++ code, use fossil::cryptic::Keygen::pbkdf2_sha256 instead.
+ */
+int fossil_cryptic_keygen_pbkdf2_sha256(
+    const uint8_t *password, size_t password_len,
+    const uint8_t *salt, size_t salt_len,
+    uint32_t iterations,
+    uint8_t *out, size_t out_len);
 
 #ifdef __cplusplus
 }
-#include <string>
 #include <vector>
-#include <array>
 #include <stdexcept>
 
-namespace fossil {
+namespace fossil::cryptic {
 
-    namespace cryptic {
+    class Keygen {
+    public:
+        /**
+         * @brief HKDF using HMAC-SHA256.
+         *
+         * @param ikm Pointer to the input keying material.
+         * @param ikm_len Length of the input keying material in bytes.
+         * @param salt Pointer to the optional salt value (can be NULL).
+         * @param salt_len Length of the salt value in bytes (0 if salt is NULL).
+         * @param info Pointer to the optional context and application specific information (can be NULL).
+         * @param info_len Length of the info value in bytes (0 if info is NULL).
+         * @param okm_len Length of the output keying material in bytes.
+         *
+         * @return A vector containing the output keying material.
+         *
+         * @throws std::runtime_error if the underlying C function fails.
+         */
+        static std::vector<uint8_t> hkdf_sha256(
+            const uint8_t *ikm, size_t ikm_len,
+            const uint8_t *salt, size_t salt_len,
+            const uint8_t *info, size_t info_len,
+            size_t okm_len)
+        {
+            std::vector<uint8_t> okm(okm_len);
+            if (fossil_cryptic_keygen_hkdf_sha256(ikm, ikm_len, salt, salt_len,
+                                                info, info_len, okm.data(), okm_len) != 0)
+                throw std::runtime_error("hkdf_sha256 failed");
+            return okm;
+        }
 
-        class Keygen {
-        public:
-            /**
-             * @brief Computes a cryptographic key using the specified algorithm, bit width, base, and seed.
-             *
-             * @param algorithm
-             *      The key derivation algorithm to use. Supported values include:
-             *      - "fnv", "crc", "mix", "auto"
-             * @param bits
-             *      The bit width of the output key. Supported values:
-             *      - "u32", "u64", "auto"
-             * @param base
-             *      The output encoding/base for the key string. Supported values:
-             *      - "hex", "base64", "auto"
-             * @param seed
-             *      The seed string (passphrase or context) used for key generation.
-             * @return
-             *      The resulting key string.
-             * @throws std::invalid_argument on invalid parameters.
-             * @throws std::runtime_error on key generation errors.
-             */
-            static std::string compute(
-            const std::string& algorithm,
-            const std::string& bits,
-            const std::string& base,
-            const std::string& seed
-            ) {
-            // Check for empty/null arguments
-            if (algorithm.empty() || bits.empty() || base.empty() || seed.empty()) {
-                throw std::invalid_argument("Arguments must not be empty");
-            }
+        /**
+         * @brief PBKDF2 using HMAC-SHA256.
+         *
+         * @param password Pointer to the password.
+         * @param password_len Length of the password in bytes.
+         * @param salt Pointer to the salt value.
+         * @param salt_len Length of the salt value in bytes.
+         * @param iterations Number of iterations to perform.
+         * @param out_len Length of the output derived key in bytes.
+         *
+         * @return A vector containing the derived key.
+         *
+         * @throws std::runtime_error if the underlying C function fails.
+         */
+        static std::vector<uint8_t> pbkdf2_sha256(
+            const uint8_t *password, size_t password_len,
+            const uint8_t *salt, size_t salt_len,
+            uint32_t iterations, size_t out_len)
+        {
+            std::vector<uint8_t> out(out_len);
+            if (fossil_cryptic_keygen_pbkdf2_sha256(password, password_len, salt, salt_len,
+                                                    iterations, out.data(), out_len) != 0)
+                throw std::runtime_error("pbkdf2_sha256 failed");
+            return out;
+        }
+    };
 
-            std::array<char, 128> buffer{};
-            int result = fossil_cryptic_keygen_compute(
-                algorithm.c_str(),
-                bits.c_str(),
-                base.c_str(),
-                seed.c_str(),
-                buffer.data(),
-                buffer.size()
-            );
-            if (result != 0) {
-                throw std::runtime_error("Key generation failed");
-            }
-
-            // Find the first null terminator without relying on strnlen.
-            size_t len = 0;
-            while (len < buffer.size() && buffer[len] != '\0') {
-                ++len;
-            }
-            return std::string(buffer.data(), len);
-            }
-        };
-
-    } // namespace cryptic
-
-} // namespace fossil
+} // namespace cryptic::fossil
 
 #endif
 
-#endif /* FOSSIL_CRYPTIC_HASH_H */
+#endif /* FOSSIL_CRYPTIC_KEYGEN_H */

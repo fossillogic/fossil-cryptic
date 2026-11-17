@@ -51,73 +51,66 @@ FOSSIL_TEARDOWN(c_keygen_fixture) {
 // as samples for library usage.
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
-FOSSIL_TEST(c_test_keygen_compute_basic_fnv_hex_u32) {
-    // Basic FNV keygen, hex, u32
-    char output[32];
-    int rc = fossil_cryptic_keygen_compute("fnv", "u32", "hex", "hello", output, sizeof(output));
+FOSSIL_TEST(c_test_keygen_hkdf_sha256_rfc5869) {
+    // RFC 5869 test case 1
+    const uint8_t ikm[22] = {
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b,
+        0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b, 0x0b
+    };
+    const uint8_t salt[13] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+        0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c
+    };
+    const uint8_t info[10] = {
+        0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9
+    };
+    const uint8_t expected[42] = {
+        0x3c, 0xb2, 0x5f, 0x25, 0xfa, 0xac, 0xd5, 0x7a,
+        0x90, 0x43, 0x4f, 0x64, 0xd0, 0x36, 0x2f, 0x2a,
+        0x2d, 0x2d, 0x0a, 0x90, 0xcf, 0x1a, 0x5a, 0x4c,
+        0x5d, 0xb0, 0x2d, 0x56, 0xec, 0xc4, 0xc5, 0xbf,
+        0x34, 0x00, 0x72, 0x08, 0xd5, 0xb8, 0x87, 0x18,
+        0x58, 0x65
+    };
+    uint8_t output[sizeof(expected)];
+    int rc = fossil_cryptic_keygen_hkdf_sha256(
+        ikm, sizeof(ikm), salt, sizeof(salt), info, sizeof(info), output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) == 8); // 8 hex digits for u32
+    ASSUME_ITS_TRUE(memcmp(output, expected, sizeof(expected)) == 0);
 }
 
-FOSSIL_TEST(c_test_keygen_compute_basic_fnv_hex_u64) {
-    // Basic FNV keygen, hex, u64
-    char output[32];
-    int rc = fossil_cryptic_keygen_compute("fnv", "u64", "hex", "hello", output, sizeof(output));
+FOSSIL_TEST(c_test_keygen_hkdf_sha256_optional_salt_info) {
+    const uint8_t ikm[] = {0x01, 0x02, 0x03, 0x04};
+    uint8_t output[32];
+    int rc = fossil_cryptic_keygen_hkdf_sha256(
+        ikm, sizeof(ikm), NULL, 0, NULL, 0, output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) == 16); // 16 hex digits for u64
 }
 
-FOSSIL_TEST(c_test_keygen_compute_crc_base64_u32) {
-    // CRC keygen, base64, u32
-    char output[32];
-    int rc = fossil_cryptic_keygen_compute("crc", "u32", "base64", "seed", output, sizeof(output));
+FOSSIL_TEST(c_test_keygen_pbkdf2_sha256_known_answer) {
+    // PBKDF2-HMAC-SHA256, password="password", salt="salt", iterations=1
+    const uint8_t password[] = "password";
+    const uint8_t salt[] = "salt";
+    const uint8_t expected[32] = {
+        0x12, 0x0f, 0xb6, 0xcf, 0xfc, 0xf8, 0xb3, 0x2c,
+        0x43, 0xe7, 0x22, 0x52, 0x56, 0xc4, 0xf8, 0x37,
+        0xa8, 0x65, 0x48, 0xc9, 0x2c, 0xcc, 0x35, 0x48,
+        0x08, 0x05, 0x98, 0x7c, 0xb7, 0x0b, 0xe1, 0x7b
+    };
+    uint8_t output[sizeof(expected)];
+    int rc = fossil_cryptic_keygen_pbkdf2_sha256(
+        password, sizeof(password) - 1, salt, sizeof(salt) - 1, 1, output, sizeof(output));
     ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) > 0);
-}
-
-FOSSIL_TEST(c_test_keygen_compute_mix_auto_auto) {
-    // Mix algorithm, auto bits, auto base
-    char output[32];
-    int rc = fossil_cryptic_keygen_compute("mix", "auto", "auto", "longseedvalue", output, sizeof(output));
-    ASSUME_ITS_EQUAL_I32(rc, 0);
-    ASSUME_ITS_TRUE(strlen(output) > 0);
-}
-
-FOSSIL_TEST(c_test_keygen_compute_null_arguments) {
-    // Should fail with null arguments
-    char output[32];
-    ASSUME_ITS_TRUE(fossil_cryptic_keygen_compute(NULL, "u32", "hex", "seed", output, sizeof(output)) != 0);
-    ASSUME_ITS_TRUE(fossil_cryptic_keygen_compute("fnv", NULL, "hex", "seed", output, sizeof(output)) != 0);
-    ASSUME_ITS_TRUE(fossil_cryptic_keygen_compute("fnv", "u32", NULL, "seed", output, sizeof(output)) != 0);
-    ASSUME_ITS_TRUE(fossil_cryptic_keygen_compute("fnv", "u32", "hex", NULL, output, sizeof(output)) != 0);
-    ASSUME_ITS_TRUE(fossil_cryptic_keygen_compute("fnv", "u32", "hex", "seed", NULL, sizeof(output)) != 0);
-}
-
-FOSSIL_TEST(c_test_keygen_compute_unsupported_algorithm) {
-    // Unsupported algorithm should fail
-    char output[32];
-    int rc = fossil_cryptic_keygen_compute("unknown", "u32", "hex", "seed", output, sizeof(output));
-    ASSUME_ITS_TRUE(rc != 0);
-}
-
-FOSSIL_TEST(c_test_keygen_compute_unsupported_base) {
-    // Unsupported base should fail
-    char output[32];
-    int rc = fossil_cryptic_keygen_compute("fnv", "u32", "octal", "seed", output, sizeof(output));
-    ASSUME_ITS_TRUE(rc != 0);
+    ASSUME_ITS_TRUE(memcmp(output, expected, sizeof(expected)) == 0);
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * *
 // * Fossil Logic Test Pool
 // * * * * * * * * * * * * * * * * * * * * * * * *
 FOSSIL_TEST_GROUP(c_keygen_tests) {
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_basic_fnv_hex_u32);
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_basic_fnv_hex_u64);
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_crc_base64_u32);
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_mix_auto_auto);
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_null_arguments);
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_unsupported_algorithm);
-    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_compute_unsupported_base);
+    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_hkdf_sha256_rfc5869);
+    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_hkdf_sha256_optional_salt_info);
+    FOSSIL_ADD_TEST(c_keygen_fixture, c_test_keygen_pbkdf2_sha256_known_answer);
 
     FOSSIL_ADD_SUITE(c_keygen_fixture);
 } // end of tests
