@@ -140,13 +140,15 @@ static void ghash_mul(uint8_t x[16], const uint8_t h[16]) {
 
     for (int i = 0; i < 16; i++) {
         for (int j = 7; j >= 0; j--) {
-            if ((x[i] >> j) & 1)
-                xor16(z, z, v);
-            int lsb = v[15] & 1;
+            uint8_t bit_mask = (uint8_t)(0u - (unsigned int)((x[i] >> j) & 1u));
+            for (int k = 0; k < 16; k++)
+                z[k] ^= (uint8_t)(v[k] & bit_mask);
+
+            uint8_t lsb = v[15] & 1u;
             for (int k = 15; k > 0; k--)
                 v[k] = (uint8_t)((v[k] >> 1) | (v[k-1] << 7));
             v[0] >>= 1;
-            if (lsb) v[0] ^= 0xe1;
+            v[0] ^= (uint8_t)(0xe1u & (uint8_t)(0u - (unsigned int)lsb));
         }
     }
     memcpy(x, z, 16);
