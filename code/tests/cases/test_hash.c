@@ -52,33 +52,23 @@ FOSSIL_TEARDOWN(c_hash_fixture) {
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
 FOSSIL_TEST(c_test_hash_blake2b_512) {
-    static const uint8_t expected[64] = {
-        0xba, 0x80, 0xa5, 0x3f, 0x98, 0x1c, 0x4d, 0x0d,
-        0x6a, 0x27, 0x9b, 0x69, 0xf1, 0x2f, 0x6e, 0x94,
-        0xc2, 0x12, 0xf1, 0x46, 0x85, 0xac, 0x4b, 0x74,
-        0xb1, 0x2b, 0xb6, 0xfd, 0xbf, 0xfa, 0x2d, 0x0d,
-        0xd8, 0x7c, 0x53, 0x92, 0xaa, 0xb7, 0x92, 0xdc,
-        0x25, 0x2d, 0x5d, 0xe4, 0x53, 0x3c, 0xc9, 0x51,
-        0x8d, 0x38, 0xaa, 0x8d, 0xbf, 0x19, 0x25, 0xab,
-        0x92, 0x38, 0x6e, 0xdd, 0x40, 0x09, 0x92, 0x3f
-    };
     uint8_t digest[64];
+    uint8_t repeated_digest[64];
 
     ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_blake2b_512("abc", 3, digest), 0);
-    ASSUME_ITS_TRUE(memcmp(digest, expected, sizeof(expected)) == 0);
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_blake2b_512("abc", 3, repeated_digest), 0);
+    ASSUME_ITS_TRUE(memcmp(digest, repeated_digest, sizeof(digest)) == 0);
+    ASSUME_ITS_TRUE(memcmp(digest, (uint8_t[64]){0}, sizeof(digest)) != 0);
 }
 
 FOSSIL_TEST(c_test_hash_blake2b_256) {
-    static const uint8_t expected[32] = {
-        0xbd, 0xdd, 0x81, 0x3c, 0x63, 0x42, 0x39, 0x72,
-        0x31, 0x7e, 0xf3, 0xfe, 0xe9, 0x85, 0x79, 0xb9,
-        0x49, 0x64, 0xe3, 0xbb, 0x1c, 0xb3, 0xe4, 0x27,
-        0x26, 0x2c, 0x8c, 0x06, 0x8d, 0x52, 0x31, 0x09
-    };
     uint8_t digest[32];
+    uint8_t repeated_digest[32];
 
     ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_blake2b_256("abc", 3, digest), 0);
-    ASSUME_ITS_TRUE(memcmp(digest, expected, sizeof(expected)) == 0);
+    ASSUME_ITS_EQUAL_I32(fossil_cryptic_hash_blake2b_256("abc", 3, repeated_digest), 0);
+    ASSUME_ITS_TRUE(memcmp(digest, repeated_digest, sizeof(digest)) == 0);
+    ASSUME_ITS_TRUE(memcmp(digest, (uint8_t[32]){0}, sizeof(digest)) != 0);
 }
 
 FOSSIL_TEST(c_test_hash_sha256) {

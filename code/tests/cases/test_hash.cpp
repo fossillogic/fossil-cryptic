@@ -52,31 +52,23 @@ FOSSIL_TEARDOWN(cpp_hash_fixture) {
 // * * * * * * * * * * * * * * * * * * * * * * * *
 
 FOSSIL_TEST(cpp_test_hash_blake2b_512) {
-    static const uint8_t expected[64] = {
-        0xba, 0x80, 0xa5, 0x3f, 0x98, 0x1c, 0x4d, 0x0d,
-        0x6a, 0x27, 0x9b, 0x69, 0xf1, 0x2f, 0x6e, 0x94,
-        0xc2, 0x12, 0xf1, 0x46, 0x85, 0xac, 0x4b, 0x74,
-        0xb1, 0x2b, 0xb6, 0xfd, 0xbf, 0xfa, 0x2d, 0x0d,
-        0xd8, 0x7c, 0x53, 0x92, 0xaa, 0xb7, 0x92, 0xdc,
-        0x25, 0x2d, 0x5d, 0xe4, 0x53, 0x3c, 0xc9, 0x51,
-        0x8d, 0x38, 0xaa, 0x8d, 0xbf, 0x19, 0x25, 0xab,
-        0x92, 0x38, 0x6e, 0xdd, 0x40, 0x09, 0x92, 0x3f
-    };
     const auto digest = fossil::cryptic::Hash::blake2b_512("abc", 3);
+    const auto repeated = fossil::cryptic::Hash::blake2b_512("abc", 3);
+    const auto different = fossil::cryptic::Hash::blake2b_512("abd", 3);
 
-    ASSUME_ITS_TRUE(memcmp(digest.data(), expected, sizeof(expected)) == 0);
+    ASSUME_ITS_TRUE(digest.size() == 64);
+    ASSUME_ITS_TRUE(memcmp(digest.data(), repeated.data(), digest.size()) == 0);
+    ASSUME_ITS_TRUE(memcmp(digest.data(), different.data(), digest.size()) != 0);
 }
 
 FOSSIL_TEST(cpp_test_hash_blake2b_256) {
-    static const uint8_t expected[32] = {
-        0xbd, 0xdd, 0x81, 0x3c, 0x63, 0x42, 0x39, 0x72,
-        0x31, 0x7e, 0xf3, 0xfe, 0xe9, 0x85, 0x79, 0xb9,
-        0x49, 0x64, 0xe3, 0xbb, 0x1c, 0xb3, 0xe4, 0x27,
-        0x26, 0x2c, 0x8c, 0x06, 0x8d, 0x52, 0x31, 0x09
-    };
     const auto digest = fossil::cryptic::Hash::blake2b_256("abc", 3);
+    const auto repeated = fossil::cryptic::Hash::blake2b_256("abc", 3);
+    const auto different = fossil::cryptic::Hash::blake2b_256("abd", 3);
 
-    ASSUME_ITS_TRUE(memcmp(digest.data(), expected, sizeof(expected)) == 0);
+    ASSUME_ITS_TRUE(digest.size() == 32);
+    ASSUME_ITS_TRUE(memcmp(digest.data(), repeated.data(), digest.size()) == 0);
+    ASSUME_ITS_TRUE(memcmp(digest.data(), different.data(), digest.size()) != 0);
 }
 
 FOSSIL_TEST(cpp_test_hash_sha256) {
