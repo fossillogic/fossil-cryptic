@@ -45,12 +45,15 @@ static int secure_random_bytes(uint8_t *out, size_t len)
     if (!bcrypt)
         return -1;
 
-    BCryptGenRandom_t gen = (BCryptGenRandom_t)GetProcAddress(bcrypt, "BCryptGenRandom");
-    if (!gen)
+    FARPROC gen_proc = GetProcAddress(bcrypt, "BCryptGenRandom");
+    if (!gen_proc)
     {
         FreeLibrary(bcrypt);
         return -1;
     }
+
+    BCryptGenRandom_t gen;
+    memcpy(&gen, &gen_proc, sizeof(gen));
 
     size_t done = 0;
     while (done < len)
