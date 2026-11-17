@@ -380,10 +380,13 @@ int fossil_cryptic_aead_decrypt(
     const uint8_t key[32],
     const uint8_t nonce[24],
     const uint8_t *ad, size_t ad_len,
-    const uint8_t *ciphertext, size_t text_len)
+    const uint8_t *ciphertext, size_t ciphertext_len)
 {
     if (!plaintext || !key || !nonce || !ciphertext) return -1;
     if (ad_len && !ad) return -1;
+    if (ciphertext_len < 16) return -1;
+
+    size_t text_len = ciphertext_len - 16;
 
     uint8_t subkey[32];
     uint8_t otk[64];

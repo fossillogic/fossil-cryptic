@@ -235,24 +235,27 @@ int fossil_cryptic_chacha20_poly1305_decrypt(
 {
     if (!plaintext || !key || !nonce || !ciphertext) return -1;
     if (ad_len && !ad) return -1;
+    if (text_len < 16) return -1;
+
+    size_t ciphertext_len = text_len - 16;
 
     uint8_t otk[64] = {0}, expect[16];
-    const uint8_t *tag = ciphertext + text_len;
+    const uint8_t *tag = ciphertext + ciphertext_len;
     fossil_cryptic_chacha20_xor(otk, otk, 64, key, nonce, 0);
 
     poly_ctx st;
     poly_init(&st, otk);
     if (ad_len) { poly_update(&st, ad, ad_len); pad16(&st, ad_len); }
-    if (text_len) { poly_update(&st, ciphertext, text_len); pad16(&st, text_len); }
+    if (ciphertext_len) { poly_update(&st, ciphertext, ciphertext_len); pad16(&st, ciphertext_len); }
     uint8_t lens[16] = {0};
     store32_le(lens, (uint32_t)ad_len); store32_le(lens+4, (uint32_t)((uint64_t)ad_len>>32));
-    store32_le(lens+8, (uint32_t)text_len); store32_le(lens+12, (uint32_t)((uint64_t)text_len>>32));
+    store32_le(lens+8, (uint32_t)ciphertext_len); store32_le(lens+12, (uint32_t)((uint64_t)ciphertext_len>>32));
     poly_update(&st, lens, 16);
     poly_finish(&st, expect);
 
     int rc = fossil_cryptic_util_verify16(tag, expect);
-    if (rc == 0 && text_len)
-        fossil_cryptic_chacha20_xor(plaintext, ciphertext, text_len, key, nonce, 1);
+    if (rc == 0 && ciphertext_len)
+        fossil_cryptic_chacha20_xor(plaintext, ciphertext, ciphertext_len, key, nonce, 1);
 
     fossil_cryptic_util_wipe(otk, sizeof otk);
     fossil_cryptic_util_wipe(expect, sizeof expect);

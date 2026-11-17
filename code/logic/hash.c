@@ -57,7 +57,8 @@ static void blake2b_g(uint64_t *v, int a, int b, int c, int d, uint64_t x, uint6
     v[b] = blake2b_rotr64(v[b] ^ v[c], 63);
 }
 
-static void blake2b_compress(uint64_t *h, const uint8_t block[128], uint64_t t, int last) {
+static void blake2b_compress(uint64_t *h, const uint8_t block[128],
+                             uint64_t t_low, uint64_t t_high, int last) {
     static const uint64_t IV[8] = {
         0x6a09e667f3bcc908ULL, 0xbb67ae8584caa73bULL,
         0x3c6ef372fe94f82bULL, 0xa54ff53a5f1d36f1ULL,
@@ -87,9 +88,10 @@ static void blake2b_compress(uint64_t *h, const uint8_t block[128], uint64_t t, 
         v[i]     = h[i];
         v[i + 8] = IV[i];
     }
-    v[12] ^= t;
+    v[12] ^= t_low;
+    v[13] ^= t_high;
     if (last)
-        v[14] = ~v[14];
+        v[14] ^= UINT64_MAX;
 
     for (int r = 0; r < 12; r++) {
         const uint8_t *s = sigma[r];
@@ -127,7 +129,11 @@ static int blake2b_generic(const void *in, size_t in_len, uint8_t *out, size_t o
     size_t offset = 0;
 
     while (in_len - offset > 128) {
-        blake2b_compress(h, data + offset, (uint64_t)(offset + 128), 0);
+        size_t processed = offset + 128;
+        uint64_t count_low = (uint64_t)processed;
+        uint64_t count_high = sizeof(size_t) > sizeof(uint64_t)
+            ? (uint64_t)((processed >> 32) >> 32) : 0;
+        blake2b_compress(h, data + offset, count_low, count_high, 0);
         offset += 128;
     }
 
@@ -136,7 +142,10 @@ static int blake2b_generic(const void *in, size_t in_len, uint8_t *out, size_t o
     if (rem)
         memcpy(block, data + offset, rem);
 
-    blake2b_compress(h, block, (uint64_t)in_len, 1);
+    uint64_t count_low = (uint64_t)in_len;
+    uint64_t count_high = sizeof(size_t) > sizeof(uint64_t)
+        ? (uint64_t)((in_len >> 32) >> 32) : 0;
+    blake2b_compress(h, block, count_low, count_high, 1);
 
     for (size_t i = 0; i < out_len; i++)
         out[i] = (uint8_t)(h[i / 8] >> (8 * (i % 8)));
