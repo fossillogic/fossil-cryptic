@@ -32,6 +32,7 @@
 #include "keygen.h"
 #include "aes.h"
 #include "aead.h"
+#include "chacha.h"
 #include "cipher.h"
 
 #endif
